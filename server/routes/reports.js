@@ -30,17 +30,56 @@ router.get('/income-expense', auth, adminOnly, async (req, res) => {
       { $group: { _id: null, total: { $sum: '$total' } } }
     ]);
 
-    const expenseResult = await Movimiento.aggregate([
-      { $match: { ...filter, tipo: 'entrada' } },
+    const cogsResult = await DetalleVenta.aggregate([
+      { $lookup: { from: 'ventas', localField: 'venta_id', foreignField: '_id', as: 'venta' } },
+      { $unwind: '$venta' },
       { $lookup: { from: 'productos', localField: 'producto_id', foreignField: '_id', as: 'producto' } },
       { $unwind: '$producto' },
+      ...(Object.keys(filter).length > 0 ? [{ $match: filter }] : []),
       { $group: { _id: null, total: { $sum: { $multiply: ['$cantidad', '$producto.precio_compra'] } } } }
     ]);
 
     const ingresos = incomeResult[0]?.total || 0;
-    const egresos = expenseResult[0]?.total || 0;
+    const costoVenta = cogsResult[0]?.total || 0;
 
-    res.json({ ingresos, egresos, ganancia: ingresos - egresos });
+    res.json({ ingresos, egresos: costoVenta, ganancia: ingresos - costoVenta });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/monthly-profit', auth, adminOnly, async (req, res) => {
+  try {
+    const { anio } = req.query;
+    const year = anio ? parseInt(anio) : new Date().getFullYear();
+    const start = new Date(year, 0, 1);
+    const end = new Date(year, 11, 31, 23, 59, 59);
+
+    const ventas = await Venta.aggregate([
+      { $match: { fecha: { $gte: start, $lte: end } } },
+      { $group: { _id: { mes: { $month: '$fecha' } }, ingresos: { $sum: '$total' }, num_ventas: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const costos = await DetalleVenta.aggregate([
+      { $lookup: { from: 'ventas', localField: 'venta_id', foreignField: '_id', as: 'venta' } },
+      { $unwind: '$venta' },
+      { $lookup: { from: 'productos', localField: 'producto_id', foreignField: '_id', as: 'producto' } },
+      { $unwind: '$producto' },
+      { $match: { 'venta.fecha': { $gte: start, $lte: end } } },
+      { $group: { _id: { mes: { $month: '$venta.fecha' } }, costo: { $sum: { $multiply: ['$cantidad', '$producto.precio_compra'] } } } },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const resultado = meses.map((nombre, i) => {
+      const v = ventas.find(x => x._id.mes === i + 1);
+      const c = costos.find(x => x._id.mes === i + 1);
+      const ingresos = v?.ingresos || 0;
+      const costo = c?.costo || 0;
+      const ganancia = ingresos - costo;
+      return { mes: i + 1, nombre, ingresos, costo, ganancia, num_ventas: v?.num_ventas || 0 };
+    });
+
+    res.json({ anio: year, meses: resultado });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

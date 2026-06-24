@@ -263,7 +263,7 @@
           </div>
           <div class="stat-card orange">
             <div class="stat-icon">&#128179;</div>
-            <div class="stat-label">Egresos por Compras</div>
+            <div class="stat-label">Costo de Productos Vendidos</div>
             <div class="stat-value" id="reportExpense">S/ 0.00</div>
           </div>
           <div class="stat-card blue">
@@ -298,14 +298,35 @@
           </div>
         </div>
         <div class="card">
-          <div class="card-header"><h2>Ventas por Día</h2></div>
+          <div class="card-header"><h2>Ventas por D&#237;a</h2></div>
           <div class="card-body">
             <div class="table-container">
               <table>
-                <thead><tr><th>Día</th><th>N° Ventas</th><th>Total</th></tr></thead>
+                <thead><tr><th>D&#237;a</th><th>N&#176; Ventas</th><th>Total</th></tr></thead>
                 <tbody id="dailySalesTable"></tbody>
               </table>
             </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>Ganancias Mensuales</h2>
+            <div class="toolbar" style="margin:0;gap:8px">
+              <select id="reportYear" class="filter-input" style="min-width:100px" onchange="renderMonthlyProfit()">
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+              </select>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead><tr><th>Mes</th><th>Ventas</th><th>Ingresos</th><th>Costo</th><th>Ganancia</th></tr></thead>
+                <tbody id="monthlyProfitTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
           </div>
         </div>
       </section>
@@ -825,17 +846,20 @@
       const income = document.getElementById('reportIncome').textContent;
       const expense = document.getElementById('reportExpense').textContent;
       const profit = document.getElementById('reportProfit').textContent;
+      const monthlyRows = document.getElementById('monthlyProfitTable').innerHTML;
 
       const win = window.open('', '_blank');
       win.document.write(`<html><head><title>Reporte ${desde} - ${hasta}</title>
-        <style>body{font-family:Arial,sans-serif;padding:30px}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:13px}th{background:#f0f0f0}.summary{display:flex;gap:24px;margin:20px 0}.summary div{padding:12px 20px;border-radius:8px;background:#f8f8f8}.label{font-size:12px;color:#666}.value{font-size:20px;font-weight:700}</style></head><body>
+        <style>body{font-family:Arial,sans-serif;padding:30px}h1{font-size:20px}h2{font-size:16px;margin-top:30px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:13px}th{background:#f0f0f0}.summary{display:flex;gap:24px;margin:20px 0}.summary div{padding:12px 20px;border-radius:8px;background:#f8f8f8}.label{font-size:12px;color:#666}.value{font-size:20px;font-weight:700}</style></head><body>
         <h1>Reporte de Inventario</h1>
         <p>Periodo: ${desde} al ${hasta}</p>
         <div class="summary">
           <div><div class="label">Ingresos</div><div class="value" style="color:#059669">${income}</div></div>
-          <div><div class="label">Egresos</div><div class="value" style="color:#d97706">${expense}</div></div>
-          <div><div class="label">Ganancia</div><div class="value" style="color:#4f46e5">${profit}</div></div>
+          <div><div class="label">Egresos (COGS)</div><div class="value" style="color:#d97706">${expense}</div></div>
+          <div><div class="label">Ganancia Neta</div><div class="value" style="color:#4f46e5">${profit}</div></div>
         </div>
+        <h2>Ganancias Mensuales</h2>
+        <table><thead><tr><th>Mes</th><th>Ventas</th><th>Ingresos</th><th>Costo</th><th>Ganancia</th></tr></thead><tbody>${monthlyRows}</tbody></table>
         <p style="color:#999;font-size:11px;margin-top:40px">Generado: ${new Date().toLocaleString('es-PE')}</p>
         </body></html>`);
       win.document.close();
@@ -1699,8 +1723,33 @@
           `).join('');
 
         await renderCharts(desde, hasta);
+        await renderMonthlyProfit();
       } catch (err) {
         console.error('Error generando reporte:', err);
+      }
+    }
+
+    async function renderMonthlyProfit() {
+      try {
+        const anio = document.getElementById('reportYear').value;
+        const data = await getMonthlyProfit(anio);
+        const tbody = document.getElementById('monthlyProfitTable');
+        const mesesConDatos = data.meses.filter(m => m.ingresos > 0 || m.costo > 0);
+        if (mesesConDatos.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-light); padding:24px">Sin datos para este a&ntilde;o</td></tr>';
+          return;
+        }
+        tbody.innerHTML = mesesConDatos.map(m => `
+          <tr>
+            <td>${m.nombre}</td>
+            <td>${m.num_ventas}</td>
+            <td style="color:var(--success)">${formatCurrency(m.ingresos)}</td>
+            <td style="color:var(--danger)">${formatCurrency(m.costo)}</td>
+            <td style="color:${m.ganancia >= 0 ? 'var(--success)' : 'var(--danger)'}"><strong>${formatCurrency(m.ganancia)}</strong></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Error cargando ganancias mensuales:', err);
       }
     }
 

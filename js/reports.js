@@ -25,3 +25,7 @@ async function getSalesByCategory(fechaDesde, fechaHasta) {
 async function getSellerSummary(fechaDesde, fechaHasta) {
   return await apiFetch(`/reports/seller-summary?desde=${fechaDesde}&hasta=${fechaHasta}`);
 }
+
+async function getMonthlyProfit(anio) {
+  return await apiFetch(`/reports/monthly-profit?anio=${anio}`);
+}
