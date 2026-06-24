@@ -140,7 +140,7 @@ router.get('/seller-summary', auth, adminOnly, async (req, res) => {
     if (desde) filter.fecha = { $gte: new Date(desde) };
     if (hasta) filter.fecha = { ...filter.fecha, $lte: new Date(hasta + 'T23:59:59') };
 
-    const result = await Venta.aggregate([
+    const ventas = await Venta.aggregate([
       { $match: filter },
       { $lookup: { from: 'usuarios', localField: 'usuario_id', foreignField: '_id', as: 'vendedor' } },
       { $unwind: '$vendedor' },
@@ -154,6 +154,25 @@ router.get('/seller-summary', auth, adminOnly, async (req, res) => {
       }},
       { $sort: { total_vendido: -1 } }
     ]);
+
+    const costos = await DetalleVenta.aggregate([
+      { $lookup: { from: 'ventas', localField: 'venta_id', foreignField: '_id', as: 'venta' } },
+      { $unwind: '$venta' },
+      { $lookup: { from: 'productos', localField: 'producto_id', foreignField: '_id', as: 'producto' } },
+      { $unwind: '$producto' },
+      ...(Object.keys(filter).length > 0 ? [{ $match: { 'venta.fecha': filter.fecha } }] : []),
+      { $group: {
+        _id: '$venta.usuario_id',
+        costo: { $sum: { $multiply: ['$cantidad', '$producto.precio_compra'] } }
+      }}
+    ]);
+
+    const result = ventas.map(v => {
+      const c = costos.find(x => x._id.toString() === v._id.toString());
+      const costo = c?.costo || 0;
+      return { ...v, inversion: costo, ganancia: v.total_vendido - costo };
+    });
+
     res.json(result);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
