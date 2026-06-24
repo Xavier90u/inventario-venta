@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Inventario</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon-sm">&#128230;</div>
+          <h2>Inventario</h2>
+        </div>
+        <p id="userRole"></p>
+        <button class="dark-toggle" onclick="toggleDarkMode()" title="Modo oscuro" id="darkToggleSidebar" style="position:absolute; top:24px; right:16px; color:var(--sidebar-text)">&#9789;</button>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="active" data-section="dashboard">&#128202; Dashboard</a>
+        <a href="#" data-section="productos">&#128230; Productos</a>
+        <a href="#" data-section="inventario">&#128203; Inventario</a>
+        <a href="#" data-section="ventas">&#128176; Ventas</a>
+        <a href="#" data-section="vendedores" data-admin="true">&#128101; Vendedores</a>
+        <a href="#" data-section="reportes" data-admin="true">&#128200; Reportes</a>
+        <a href="#" data-section="usuarios" data-admin="true">&#128101; Usuarios</a>
+        <a href="#" data-section="alertas">
+          &#128680; Alertas
+          <span class="badge" id="alertBadge" style="display:none"></span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="#" onclick="logoutUser()">&#128682; Cerrar Sesi&#243;n</a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="top-bar">
+        <button class="hamburger" onclick="toggleSidebar()">&#9776;</button>
+        <h1 style="font-size:16px">Inventario</h1>
+        <button class="dark-toggle" onclick="toggleDarkMode()" title="Modo oscuro" id="darkToggle">&#9789;</button>
+      </div>
+      <!-- DASHBOARD -->
+      <section id="section-dashboard" class="content-section">
+        <div class="page-header">
+          <h1>Dashboard</h1>
+          <button class="btn btn-secondary btn-sm" onclick="downloadBackup()">&#128190; Descargar Respaldo</button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card blue">
+            <div class="stat-icon">&#128230;</div>
+            <div class="stat-label">Total Productos</div>
+            <div class="stat-value" id="statProducts">0</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-icon">&#128176;</div>
+            <div class="stat-label">Ventas Hoy</div>
+            <div class="stat-value" id="statSalesToday">0</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="stat-icon">&#128200;</div>
+            <div class="stat-label">Ingresos del Mes</div>
+            <div class="stat-value" id="statIncomeMonth">S/ 0.00</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-icon">&#9888;</div>
+            <div class="stat-label">Stock Bajo</div>
+            <div class="stat-value" id="statLowStock">0</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>Productos con Stock Bajo</h2>
+          </div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr><th>Producto</th><th>Stock Actual</th><th>Stock Mínimo</th><th>Estado</th></tr>
+                </thead>
+                <tbody id="lowStockTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>Últimas Ventas</h2></div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr><th>ID</th><th>Cliente</th><th>Total</th><th>Fecha</th><th>Vendedor</th></tr>
+                </thead>
+                <tbody id="recentSalesTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PRODUCTOS -->
+      <section id="section-productos" class="content-section" style="display:none">
+        <div class="page-header">
+          <h1>Productos</h1>
+          <div class="page-actions">
+            <button class="btn btn-outline btn-sm" onclick="exportProductsToExcel()">&#128229; Excel</button>
+            <button class="btn btn-primary btn-sm" onclick="openProductModal()" id="btnAddProduct">&#10010;</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="toolbar">
+              <div class="search-bar">
+                <input type="text" id="searchProduct" placeholder="Buscar por nombre o categor&#237;a..." oninput="renderProducts()">
+              </div>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                    <tr>
+                      <th>Nombre</th><th>Categor&#237;a</th><th>Compra (S/)</th><th>Venta (S/)</th>
+                      <th>Stock</th><th>M&#237;nimo</th><th>Estado</th><th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="productsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INVENTARIO -->
+      <section id="section-inventario" class="content-section" style="display:none">
+        <div class="page-header">
+          <h1>Inventario</h1>
+        </div>
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="todos" onclick="filterMovements('todos', this)">&#128203; Todos <span class="tab-count" id="tabAll">0</span></button>
+          <button class="tab-btn" data-tab="entrada" onclick="filterMovements('entrada', this)">&#128229; Entradas <span class="tab-count" id="tabEntradas">0</span></button>
+          <button class="tab-btn" data-tab="salida" onclick="filterMovements('salida', this)">&#128230; Salidas <span class="tab-count" id="tabSalidas">0</span></button>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="toolbar">
+              <div class="search-bar">
+                <input type="text" id="searchMovement" placeholder="Buscar por producto o usuario..." oninput="renderMovements()">
+              </div>
+              <div class="filter-bar" style="margin-bottom:0">
+                <div>
+                  <label>Desde</label>
+                  <input type="date" id="movDateFrom" onchange="renderMovements()">
+                </div>
+                <div>
+                  <label>Hasta</label>
+                  <input type="date" id="movDateTo" onchange="renderMovements()">
+                </div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="openMovementModal()">&#10010;</button>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Motivo</th><th>Usuario</th></tr>
+                </thead>
+                <tbody id="movementsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VENTAS -->
+      <section id="section-ventas" class="content-section" style="display:none">
+        <div class="page-header">
+          <h1>Ventas</h1>
+          <div class="page-actions">
+            <button class="btn btn-outline btn-sm" onclick="exportSalesToExcel()">&#128229; Excel</button>
+            <button class="btn btn-primary btn-sm" onclick="openSaleModal()">&#10010;</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="toolbar">
+              <div class="search-bar">
+                <input type="text" id="searchSale" placeholder="Buscar por cliente o vendedor..." oninput="renderSales()">
+              </div>
+              <div class="filter-bar" style="margin-bottom:0">
+                <div>
+                  <label>Desde</label>
+                  <input type="date" id="saleDateFrom" onchange="renderSales()">
+                </div>
+                <div>
+                  <label>Hasta</label>
+                  <input type="date" id="saleDateTo" onchange="renderSales()">
+                </div>
+              </div>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr><th>ID</th><th>Cliente</th><th>Total</th><th>Fecha</th><th>Vendedor</th><th>Detalles</th></tr>
+                </thead>
+                <tbody id="salesTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REPORTES -->
+      <section id="section-reportes" class="content-section" style="display:none">
+        <div class="page-header">
+          <h1>Reportes</h1>
+          <button class="btn btn-outline btn-sm" onclick="exportReportToPDF()">&#128196; Exportar PDF</button>
+        </div>
+        <div class="filter-bar">
+          <div>
+            <label>Desde</label>
+            <input type="date" id="reportDateFrom">
+          </div>
+          <div>
+            <label>Hasta</label>
+            <input type="date" id="reportDateTo">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="generateReport()" style="margin-top:18px">Generar</button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card green">
+            <div class="stat-icon">&#128178;</div>
+            <div class="stat-label">Ingresos por Ventas</div>
+            <div class="stat-value" id="reportIncome">S/ 0.00</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="stat-icon">&#128179;</div>
+            <div class="stat-label">Egresos por Compras</div>
+            <div class="stat-value" id="reportExpense">S/ 0.00</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-icon">&#128200;</div>
+            <div class="stat-label">Ganancia Neta</div>
+            <div class="stat-value" id="reportProfit">S/ 0.00</div>
+          </div>
+        </div>
+        <div class="charts-grid">
+          <div class="card">
+            <div class="card-header"><h2>Ventas por D&#237;a</h2></div>
+            <div class="card-body">
+              <canvas id="chartVentasDiarias" height="200"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2>Ventas por Categor&#237;a</h2></div>
+            <div class="card-body">
+              <canvas id="chartCategorias" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>Productos M&#225;s Vendidos</h2></div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead><tr><th>Producto</th><th>Unidades Vendidas</th><th>Total Ingresado</th></tr></thead>
+                <tbody id="topProductsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>Ventas por Día</h2></div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead><tr><th>Día</th><th>N° Ventas</th><th>Total</th></tr></thead>
+                <tbody id="dailySalesTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VENDEDORES -->
+      <section id="section-vendedores" class="content-section" style="display:none">
+        <div class="page-header">
+          <h1>Vendedores del D&#237;a</h1>
+        </div>
+        <div class="toolbar" style="margin-bottom:20px">
+          <div class="filter-bar" style="margin-bottom:0">
+            <div>
+              <label>Fecha</label>
+              <input type="date" id="sellerDate" onchange="renderSellerSummary()">
+            </div>
+          </div>
+        </div>
+        <div class="stats-grid" id="sellerCards"></div>
+        <div class="card">
+          <div class="card-header"><h2>Detalle de Ventas por Vendedor</h2></div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr><th>Vendedor</th><th>N° Ventas</th><th>Total Vendido</th><th>Promedio/Venta</th><th>% del Total</th></tr>
+                </thead>
+                <tbody id="sellerTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- USUARIOS -->
+      <section id="section-usuarios" class="content-section" style="display:none">
+        <div class="page-header">
+          <h1>Usuarios</h1>
+          <button class="btn btn-primary btn-sm" onclick="openUserModal()">&#10010;</button>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="toolbar">
+              <div class="search-bar">
+                <input type="text" id="searchUser" placeholder="Buscar por nombre o usuario..." oninput="renderUsers()">
+              </div>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr>
+                </thead>
+                <tbody id="usersTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ALERTAS -->
+      <section id="section-alertas" class="content-section" style="display:none">
+        <div class="page-header"><h1>Alertas de Stock</h1></div>
+        <div id="alertsContainer"></div>
+        <div class="card">
+          <div class="card-header"><h2>Productos con Stock Bajo o Agotado</h2></div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr><th>Producto</th><th>Stock Actual</th><th>Stock Mínimo</th><th>Estado</th></tr>
+                </thead>
+                <tbody id="alertsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL PRODUCTO -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="productModalTitle">Agregar Producto</h2>
+        <button class="modal-close" onclick="closeModal('productModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="productId">
+        <div class="form-group">
+          <label>Nombre *</label>
+          <input type="text" id="prodNombre" required>
+        </div>
+        <div class="form-group">
+          <label>Categoría</label>
+          <input type="text" id="prodCategoria" list="catList">
+          <datalist id="catList"></datalist>
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea id="prodDescripcion" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Precio de Compra (S/) *</label>
+          <input type="number" id="prodPrecioCompra" step="0.01" min="0" required>
+        </div>
+        <div class="form-group">
+          <label>Precio de Venta (S/) *</label>
+          <input type="number" id="prodPrecioVenta" step="0.01" min="0" required>
+          <div class="field-error"></div>
+        </div>
+        <div class="form-group">
+          <label>Stock Inicial</label>
+          <input type="number" id="prodStock" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label>Stock Mínimo</label>
+          <input type="number" id="prodStockMin" min="0" value="5">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('productModal')">&#10005; Cancelar</button>
+        <button class="btn btn-primary" onclick="saveProduct()">&#10003; Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL MOVIMIENTO -->
+  <div class="modal-overlay" id="movementModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Registrar Entrada / Salida</h2>
+        <button class="modal-close" onclick="closeModal('movementModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Producto *</label>
+          <select id="movProducto"></select>
+        </div>
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select id="movTipo">
+            <option value="entrada">Entrada (Compra / Reposici&#243;n)</option>
+            <option value="salida">Salida (Devoluci&#243;n / Ajuste / Otro)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Cantidad *</label>
+          <input type="number" id="movCantidad" min="1" value="1" required>
+        </div>
+        <div class="form-group">
+          <label>Motivo</label>
+          <input type="text" id="movMotivo" placeholder="Ej: Compra proveedor, Ajuste...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('movementModal')">&#10005; Cancelar</button>
+        <button class="btn btn-primary" onclick="saveMovement()">&#10003; Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL VENTA -->
+  <div class="modal-overlay" id="saleModal">
+    <div class="modal" style="max-width:600px">
+      <div class="modal-header">
+        <h2>Nueva Venta</h2>
+        <button class="modal-close" onclick="closeModal('saleModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Cliente</label>
+          <input type="text" id="saleCliente" value="Cliente general">
+        </div>
+        <div class="form-group">
+          <label>Agregar Producto al Carrito</label>
+          <select id="saleProductSelect" onchange="addProductToCart()"></select>
+        </div>
+        <div style="border:1px solid var(--border); border-radius:8px; padding:12px; margin-top:8px">
+          <div id="saleCart"></div>
+        </div>
+        <div class="cart-total">
+          <span>Total:</span>
+          <span id="saleTotal">$0.00</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('saleModal')">&#10005; Cancelar</button>
+        <button class="btn btn-success" onclick="completeSale()">&#10003; Completar Venta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE VENTA -->
+  <div class="modal-overlay" id="saleDetailModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Detalle de Venta</h2>
+        <button class="modal-close" onclick="closeModal('saleDetailModal')">&times;</button>
+      </div>
+      <div class="modal-body" id="saleDetailContent"></div>
+    </div>
+  </div>
+
+  <!-- MODAL TICKET -->
+  <div class="modal-overlay" id="ticketModal">
+    <div class="modal" style="max-width:320px">
+      <div class="modal-header">
+        <h2>Ticket de Venta</h2>
+        <button class="modal-close" onclick="closeModal('ticketModal')">&times;</button>
+      </div>
+      <div class="modal-body" id="ticketContent"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('ticketModal')">&#10005; Cerrar</button>
+        <button class="btn btn-primary btn-sm" onclick="printTicket()">&#128424; Imprimir</button>
+      </div>
+    </div>
+  </div>
+
+      <!-- MODAL USUARIO -->
+  <div class="modal-overlay" id="userModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Crear Usuario</h2>
+        <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nombre *</label>
+          <input type="text" id="usrNombre" required>
+          <div class="field-error"></div>
+        </div>
+        <div class="form-group">
+          <label>Usuario *</label>
+          <input type="text" id="usrUsuario" required>
+          <div class="field-error"></div>
+        </div>
+        <div class="form-group">
+          <label>Contraseña *</label>
+          <input type="password" id="usrContrasena" required>
+          <div class="field-error"></div>
+        </div>
+        <div class="form-group">
+          <label>Rol *</label>
+          <select id="usrRol">
+            <option value="empleado">Empleado</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('userModal')">&#10005; Cancelar</button>
+        <button class="btn btn-primary" onclick="saveUser()">&#10003; Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/products.js"></script>
+  <script src="js/inventory.js"></script>
+  <script src="js/sales.js"></script>
+  <script src="js/reports.js"></script>
+  <script src="js/alerts.js"></script>
+  <script>
+    let currentCart = [];
+    let currentMovementFilter = 'todos';
+
+    // ===== DARK MODE =====
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark');
+      const isDark = document.body.classList.contains('dark');
+      localStorage.setItem('darkMode', isDark);
+      document.getElementById('darkToggle').textContent = isDark ? '&#9788;' : '&#9789;';
+      const sb = document.getElementById('darkToggleSidebar');
+      if (sb) sb.textContent = isDark ? '&#9788;' : '&#9789;';
+    }
+
+    if (localStorage.getItem('darkMode') === 'true') {
+      document.body.classList.add('dark');
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('darkToggle').textContent = '&#9788;';
+        const sb = document.getElementById('darkToggleSidebar');
+        if (sb) sb.textContent = '&#9788;';
+      });
+    }
+
+    // ===== HAMBURGER MENU =====
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('active');
+    }
+
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('active');
+    }
+
+    // ===== EXPORT TO EXCEL =====
+    function exportToExcel(headers, rows, filename) {
+      let csv = '\uFEFF';
+      csv += headers.join(';') + '\n';
+      rows.forEach(row => {
+        csv += row.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(';') + '\n';
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename + '_' + new Date().toISOString().split('T')[0] + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function exportProductsToExcel() {
+      try {
+        const products = await getAllProducts();
+        const headers = ['Nombre', 'Categoria', 'Precio Compra', 'Precio Venta', 'Stock Actual', 'Stock Minimo', 'Estado'];
+        const rows = [];
+        for (const p of products) {
+          const status = await getStockStatus(p);
+          rows.push([p.nombre, p.categoria || '-', p.precio_compra, p.precio_venta, p.stock_actual, p.stock_minimo, status.text]);
+        }
+        exportToExcel(headers, rows, 'productos');
+      } catch (e) { alert('Error exportando: ' + e.message); }
+    }
+
+    async function exportSalesToExcel() {
+      try {
+        const sales = await getAllSales();
+        const headers = ['ID', 'Cliente', 'Total', 'Fecha', 'Vendedor'];
+        const rows = sales.map(s => [s._id?.slice(-6), s.cliente, s.total, new Date(s.fecha).toLocaleDateString('es-PE'), s.usuario_nombre]);
+        exportToExcel(headers, rows, 'ventas');
+      } catch (e) { alert('Error exportando: ' + e.message); }
+    }
+
+    function exportReportToPDF() {
+      const desde = document.getElementById('reportDateFrom').value;
+      const hasta = document.getElementById('reportDateTo').value;
+      const income = document.getElementById('reportIncome').textContent;
+      const expense = document.getElementById('reportExpense').textContent;
+      const profit = document.getElementById('reportProfit').textContent;
+
+      const win = window.open('', '_blank');
+      win.document.write(`<html><head><title>Reporte ${desde} - ${hasta}</title>
+        <style>body{font-family:Arial,sans-serif;padding:30px}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:13px}th{background:#f0f0f0}.summary{display:flex;gap:24px;margin:20px 0}.summary div{padding:12px 20px;border-radius:8px;background:#f8f8f8}.label{font-size:12px;color:#666}.value{font-size:20px;font-weight:700}</style></head><body>
+        <h1>Reporte de Inventario</h1>
+        <p>Periodo: ${desde} al ${hasta}</p>
+        <div class="summary">
+          <div><div class="label">Ingresos</div><div class="value" style="color:#059669">${income}</div></div>
+          <div><div class="label">Egresos</div><div class="value" style="color:#d97706">${expense}</div></div>
+          <div><div class="label">Ganancia</div><div class="value" style="color:#4f46e5">${profit}</div></div>
+        </div>
+        <p style="color:#999;font-size:11px;margin-top:40px">Generado: ${new Date().toLocaleString('es-PE')}</p>
+        </body></html>`);
+      win.document.close();
+      setTimeout(() => { win.print(); }, 500);
+    }
+
+    // ===== VALIDACIONES =====
+    function validateField(input, rules) {
+      const value = input.value.trim();
+      let valid = true;
+      let msg = '';
+
+      if (rules.required && !value) {
+        valid = false;
+        msg = 'Este campo es obligatorio';
+      } else if (rules.min && value.length < rules.min) {
+        valid = false;
+        msg = `Minimo ${rules.min} caracteres`;
+      } else if (rules.minVal !== undefined && Number(value) < rules.minVal) {
+        valid = false;
+        msg = `Valor minimo: ${rules.minVal}`;
+      } else if (rules.pattern && !rules.pattern.test(value)) {
+        valid = false;
+        msg = 'Formato invalido';
+      }
+
+      input.classList.toggle('error', !valid);
+      const errorEl = input.parentElement.querySelector('.field-error');
+      if (errorEl) {
+        errorEl.textContent = msg;
+        errorEl.style.display = valid ? 'none' : 'block';
+      }
+      return valid;
+    }
+
+    function addFieldError(input, msg) {
+      input.classList.add('error');
+      let errorEl = input.parentElement.querySelector('.field-error');
+      if (!errorEl) {
+        errorEl = document.createElement('div');
+        errorEl.className = 'field-error';
+        input.parentElement.appendChild(errorEl);
+      }
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+
+    function clearFieldErrors(form) {
+      form.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
+      form.querySelectorAll('.field-error').forEach(el => el.style.display = 'none');
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!requireAuth()) return;
+
+      const user = getCurrentUser();
+      document.getElementById('userRole').textContent = `${user.nombre} (${user.rol})`;
+
+      document.querySelectorAll('[data-admin="true"]').forEach(el => {
+        if (!isAdmin()) el.style.display = 'none';
+      });
+
+      document.querySelectorAll('.sidebar-nav a').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const section = link.dataset.section;
+          showSection(section);
+        });
+      });
+
+      showSection('dashboard');
+      updateAlertBadge();
+    });
+
+    function showSection(name) {
+      document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+      document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+      const section = document.getElementById('section-' + name);
+      if (section) section.style.display = 'block';
+      const navLink = document.querySelector(`.sidebar-nav a[data-section="${name}"]`);
+      if (navLink) navLink.classList.add('active');
+      closeSidebar();
+
+      if (name === 'dashboard') loadDashboard();
+      else if (name === 'productos') renderProducts();
+      else if (name === 'inventario') renderMovements();
+      else if (name === 'ventas') renderSales();
+      else if (name === 'vendedores') renderSellerSummary();
+      else if (name === 'reportes') loadReportDefaults();
+      else if (name === 'usuarios') renderUsers();
+      else if (name === 'alertas') renderAlerts();
+    }
+
+    function formatCurrency(val) {
+      return 'S/ ' + Number(val || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+    }
+
+    // ===== DASHBOARD =====
+    async function loadDashboard() {
+      try {
+        const products = await getAllProducts();
+        document.getElementById('statProducts').textContent = products.length;
+
+        const today = new Date().toISOString().split('T')[0];
+        const salesToday = await getSalesSummary(today, today);
+        document.getElementById('statSalesToday').textContent = salesToday?.total_ventas || 0;
+
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const monthIncome = await getSalesSummary(monthStart, today);
+        document.getElementById('statIncomeMonth').textContent = formatCurrency(monthIncome?.total_ingresos || 0);
+
+        const lowStock = await getLowStockProducts();
+        document.getElementById('statLowStock').textContent = lowStock.length;
+
+        const lowTable = document.getElementById('lowStockTable');
+        if (lowStock.length === 0) {
+          lowTable.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-light); padding:24px">&#10003; No hay productos con stock bajo</td></tr>';
+        } else {
+          const statusPromises = lowStock.map(p => getStockStatus(p));
+          const statuses = await Promise.all(statusPromises);
+          lowTable.innerHTML = lowStock.map((p, i) => `
+            <tr>
+              <td>${p.nombre}</td>
+              <td>${p.stock_actual}</td>
+              <td>${p.stock_minimo}</td>
+              <td><span class="badge-${statuses[i].class}">${statuses[i].text}</span></td>
+            </tr>
+          `).join('');
+        }
+
+        const allSales = await getAllSales();
+        const recentSales = allSales.slice(0, 5);
+        const recentTable = document.getElementById('recentSalesTable');
+        if (recentSales.length === 0) {
+          recentTable.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-light); padding:24px">No hay ventas registradas a&#250;n</td></tr>';
+        } else {
+          recentTable.innerHTML = recentSales.map(s => `
+            <tr>
+              <td>#${s._id?.slice(-6) || ''}</td>
+              <td>${s.cliente}</td>
+              <td>${formatCurrency(s.total)}</td>
+              <td>${new Date(s.fecha).toLocaleDateString('es-PE')}</td>
+              <td>${s.usuario_nombre}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Error cargando dashboard:', err);
+      }
+    }
+
+    async function updateAlertBadge() {
+      const count = await getAlertCount();
+      const badge = document.getElementById('alertBadge');
+      if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'inline';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // ===== PRODUCTOS =====
+    async function renderProducts() {
+      try {
+        const search = document.getElementById('searchProduct').value.trim();
+        const products = search ? await searchProducts(search) : await getAllProducts();
+        const tbody = document.getElementById('productsTable');
+        const isAdm = isAdmin();
+
+        document.getElementById('btnAddProduct').style.display = isAdm ? '' : 'none';
+
+        if (products.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-light); padding:24px">No hay productos registrados</td></tr>';
+          return;
+        }
+
+        const statusPromises = products.map(p => getStockStatus(p));
+        const statuses = await Promise.all(statusPromises);
+
+        tbody.innerHTML = products.map((p, i) => `
+          <tr>
+            <td>${p.nombre}</td>
+            <td>${p.categoria || '-'}</td>
+            <td>${formatCurrency(p.precio_compra)}</td>
+            <td>${formatCurrency(p.precio_venta)}</td>
+            <td>${p.stock_actual}</td>
+            <td>${p.stock_minimo}</td>
+            <td><span class="badge-${statuses[i].class}">${statuses[i].text}</span></td>
+            <td>
+              ${isAdm ? `
+                <button class="btn btn-warning btn-xs" onclick="editProduct('${p._id}')">&#9998;</button>
+                <button class="btn btn-danger btn-xs" onclick="removeProduct('${p._id}')">&#128465;</button>
+              ` : '<span class="no-admin-note">Solo admin</span>'}
+            </td>
+          </tr>
+        `).join('');
+
+        const catList = document.getElementById('catList');
+        const cats = await getCategorias();
+        catList.innerHTML = cats.map(c => `<option value="${c}">`).join('');
+      } catch (err) {
+        console.error('Error renderizando productos:', err);
+      }
+    }
+
+    function openProductModal(product = null) {
+      if (!requireAdmin()) return;
+      document.getElementById('productModalTitle').textContent = product ? 'Editar Producto' : 'Agregar Producto';
+      document.getElementById('productId').value = product ? product._id : '';
+      document.getElementById('prodNombre').value = product ? product.nombre : '';
+      document.getElementById('prodCategoria').value = product ? product.categoria : '';
+      document.getElementById('prodDescripcion').value = product ? product.descripcion : '';
+      document.getElementById('prodPrecioCompra').value = product ? product.precio_compra : '';
+      document.getElementById('prodPrecioVenta').value = product ? product.precio_venta : '';
+      document.getElementById('prodStock').value = product ? product.stock_actual : 0;
+      document.getElementById('prodStockMin').value = product ? product.stock_minimo : 5;
+      openModal('productModal');
+    }
+
+    async function editProduct(id) {
+      const product = await getProductById(id);
+      if (product) openProductModal(product);
+    }
+
+    async function saveProduct() {
+      const form = document.getElementById('productModal');
+      clearFieldErrors(form);
+
+      const id = document.getElementById('productId').value;
+      const nombre = document.getElementById('prodNombre');
+      const precioVenta = document.getElementById('prodPrecioVenta');
+
+      let valid = true;
+      if (!validateField(nombre, { required: true, min: 2 })) valid = false;
+      if (!validateField(precioVenta, { required: true, minVal: 0.01 })) valid = false;
+      if (!valid) return;
+
+      const data = {
+        nombre: nombre.value.trim(),
+        categoria: document.getElementById('prodCategoria').value.trim(),
+        descripcion: document.getElementById('prodDescripcion').value.trim(),
+        precio_compra: parseFloat(document.getElementById('prodPrecioCompra').value) || 0,
+        precio_venta: parseFloat(precioVenta.value) || 0,
+        stock_actual: parseInt(document.getElementById('prodStock').value) || 0,
+        stock_minimo: parseInt(document.getElementById('prodStockMin').value) || 5
+      };
+
+      try {
+        if (id) {
+          await updateProduct(id, data);
+        } else {
+          await createProduct(data);
+        }
+        closeModal('productModal');
+        renderProducts();
+        updateAlertBadge();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    async function removeProduct(id) {
+      if (!requireAdmin()) return;
+      if (confirm('¿Está seguro de eliminar este producto?')) {
+        await deleteProduct(id);
+        renderProducts();
+        updateAlertBadge();
+      }
+    }
+
+    // ===== INVENTARIO =====
+    function filterMovements(tipo, btn) {
+      currentMovementFilter = tipo;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderMovements();
+    }
+
+    async function renderMovements() {
+      try {
+        const desde = document.getElementById('movDateFrom').value || null;
+        const hasta = document.getElementById('movDateTo').value || null;
+        const search = document.getElementById('searchMovement').value.trim().toLowerCase();
+        let movements = await getMovements(null, desde, hasta);
+
+        if (currentMovementFilter !== 'todos') {
+          movements = movements.filter(m => m.tipo === currentMovementFilter);
+        }
+
+        if (search) {
+          movements = movements.filter(m =>
+            (m.producto_nombre || '').toLowerCase().includes(search) ||
+            (m.usuario_nombre || '').toLowerCase().includes(search) ||
+            (m.motivo || '').toLowerCase().includes(search)
+          );
+        }
+
+        const allMovements = await getMovements(null, desde, hasta);
+        const entradas = allMovements.filter(m => m.tipo === 'entrada');
+        const salidas = allMovements.filter(m => m.tipo === 'salida');
+        document.getElementById('tabAll').textContent = allMovements.length;
+        document.getElementById('tabEntradas').textContent = entradas.length;
+        document.getElementById('tabSalidas').textContent = salidas.length;
+
+        const tbody = document.getElementById('movementsTable');
+
+        if (movements.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-light); padding:24px">No hay movimientos registrados</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = movements.map(m => {
+          const isEntrada = m.tipo === 'entrada';
+          return `
+            <tr>
+              <td>${new Date(m.fecha).toLocaleDateString('es-PE')}</td>
+              <td>${m.producto_nombre}</td>
+              <td><span class="badge-${isEntrada ? 'success' : 'danger'}">${isEntrada ? '&#128229; Entrada' : '&#128230; Salida'}</span></td>
+              <td style="font-weight:600; color:${isEntrada ? 'var(--success)' : 'var(--danger)'}">+${isEntrada ? '' : '-'}${m.cantidad}</td>
+              <td>${m.motivo || '-'}</td>
+              <td>${m.usuario_nombre}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Error renderizando movimientos:', err);
+      }
+    }
+
+    async function openMovementModal() {
+      const products = await getAllProducts();
+      const select = document.getElementById('movProducto');
+      select.innerHTML = products.map(p => `<option value="${p._id}">${p.nombre} (Stock: ${p.stock_actual})</option>`).join('');
+      document.getElementById('movCantidad').value = 1;
+      document.getElementById('movMotivo').value = '';
+      openModal('movementModal');
+    }
+
+    async function saveMovement() {
+      const productoId = document.getElementById('movProducto').value;
+      const tipo = document.getElementById('movTipo').value;
+      const cantidad = parseInt(document.getElementById('movCantidad').value);
+      const motivo = document.getElementById('movMotivo').value.trim();
+      const user = getCurrentUser();
+
+      if (!productoId) {
+        alert('Seleccione un producto');
+        return;
+      }
+      if (!cantidad || cantidad <= 0) {
+        alert('La cantidad debe ser mayor a 0');
+        return;
+      }
+
+      try {
+        await addMovement(productoId, tipo, cantidad, motivo, user.id);
+        closeModal('movementModal');
+        renderMovements();
+        updateAlertBadge();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    // ===== VENTAS =====
+    async function renderSales() {
+      try {
+        const desde = document.getElementById('saleDateFrom').value || null;
+        const hasta = document.getElementById('saleDateTo').value || null;
+        const search = document.getElementById('searchSale').value.trim().toLowerCase();
+        let sales = await getAllSales(desde, hasta);
+
+        if (search) {
+          sales = sales.filter(s =>
+            (s.cliente || '').toLowerCase().includes(search) ||
+            (s.usuario_nombre || '').toLowerCase().includes(search)
+          );
+        }
+
+        const tbody = document.getElementById('salesTable');
+
+        if (sales.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-light); padding:24px">No hay ventas registradas</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = sales.map(s => `
+          <tr>
+            <td>#${s._id?.slice(-6)}</td>
+            <td>${s.cliente}</td>
+            <td>${formatCurrency(s.total)}</td>
+            <td>${new Date(s.fecha).toLocaleDateString('es-PE')}</td>
+            <td>${s.usuario_nombre}</td>
+            <td><button class="btn btn-secondary btn-xs" onclick="viewSaleDetail('${s._id}')">&#128065; Ver</button></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Error renderizando ventas:', err);
+      }
+    }
+
+    async function openSaleModal() {
+      try {
+        currentCart = [];
+        document.getElementById('saleCliente').value = 'Cliente general';
+        document.getElementById('saleCart').innerHTML = '<div style="text-align:center; padding:28px; color:var(--text-light)"><div style="font-size:32px; margin-bottom:8px">&#128722;</div><p style="font-size:13px">Seleccione un producto del men&#250; de arriba para agregarlo al carrito</p></div>';
+        document.getElementById('saleTotal').textContent = 'S/ 0.00';
+
+        const products = (await getAllProducts()).filter(p => p.stock_actual > 0);
+        document.getElementById('saleProductSelect').innerHTML =
+          '<option value="">-- Seleccionar producto --</option>' +
+          products.map(p => `<option value="${p._id}">${p.nombre} - ${formatCurrency(p.precio_venta)} (Stock: ${p.stock_actual})</option>`).join('');
+        openModal('saleModal');
+      } catch (err) {
+        console.error('Error abriendo modal venta:', err);
+      }
+    }
+
+    async function addProductToCart() {
+      const select = document.getElementById('saleProductSelect');
+      const productId = select.value;
+      if (!productId) return;
+
+      const product = await getProductById(productId);
+      if (!product) return;
+
+      const existing = currentCart.find(item => item.producto_id === productId);
+      if (existing) {
+        if (existing.cantidad < product.stock_actual) {
+          existing.cantidad++;
+        }
+      } else {
+        currentCart.push({ producto_id: productId, nombre: product.nombre, precio: product.precio_venta, cantidad: 1, maxStock: product.stock_actual });
+      }
+      select.value = '';
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById('saleCart');
+      if (currentCart.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:28px; color:var(--text-light)"><div style="font-size:32px; margin-bottom:8px">&#128722;</div><p style="font-size:13px">Seleccione un producto del men&#250; de arriba para agregarlo al carrito</p></div>';
+      document.getElementById('saleTotal').textContent = 'S/ 0.00';
+        return;
+      }
+
+      container.innerHTML = currentCart.map((item, index) => `
+        <div class="cart-item">
+          <div class="cart-item-info">
+            <h4>${item.nombre}</h4>
+            <p>${formatCurrency(item.precio)} c/u &middot; Subtotal: ${formatCurrency(item.precio * item.cantidad)}</p>
+          </div>
+          <div class="cart-item-actions">
+            <input type="number" value="${item.cantidad}" min="1" max="${item.maxStock}"
+              onchange="updateCartQuantity(${index}, this.value)">
+            <button class="btn btn-danger btn-sm" onclick="removeFromCart(${index})">&#10005;</button>
+          </div>
+        </div>
+      `).join('');
+
+      const total = currentCart.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+      document.getElementById('saleTotal').textContent = formatCurrency(total);
+    }
+
+    function updateCartQuantity(index, qty) {
+      qty = parseInt(qty);
+      if (qty <= 0) {
+        removeFromCart(index);
+        return;
+      }
+      if (qty > currentCart[index].maxStock) {
+        qty = currentCart[index].maxStock;
+      }
+      currentCart[index].cantidad = qty;
+      renderCart();
+    }
+
+    function removeFromCart(index) {
+      currentCart.splice(index, 1);
+      renderCart();
+    }
+
+    async function completeSale() {
+      if (currentCart.length === 0) {
+        alert('Agregue al menos un producto al carrito');
+        return;
+      }
+
+      const cliente = document.getElementById('saleCliente').value.trim() || 'Cliente general';
+      const user = getCurrentUser();
+
+      for (const item of currentCart) {
+        if (item.cantidad > item.maxStock) {
+          alert(`Stock insuficiente para "${item.nombre}" (max: ${item.maxStock})`);
+          return;
+        }
+      }
+
+      try {
+        const venta = await createSale(cliente, currentCart, user.id);
+        closeModal('saleModal');
+        renderSales();
+        updateAlertBadge();
+
+        if (confirm(`Venta registrada.\n\n¿Desea imprimir el ticket?`)) {
+          generateTicket(venta);
+        } else {
+          alert(`Venta registrada exitosamente`);
+        }
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    async function viewSaleDetail(ventaId) {
+      try {
+        const details = await getSaleDetails(ventaId);
+        const container = document.getElementById('saleDetailContent');
+        let html = '<table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>';
+        let total = 0;
+        details.forEach(d => {
+          total += d.subtotal;
+          html += `<tr><td>${d.producto_nombre}</td><td>${d.cantidad}</td><td>${formatCurrency(d.precio_unitario)}</td><td>${formatCurrency(d.subtotal)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:2px solid var(--border)">
+          <span style="font-size:16px; font-weight:700">Total: ${formatCurrency(total)}</span>
+          <button class="btn btn-primary btn-sm" onclick="closeModal('saleDetailModal'); generateTicket('${ventaId}')">&#128424; Imprimir Ticket</button>
+        </div>`;
+        container.innerHTML = html;
+        openModal('saleDetailModal');
+      } catch (err) {
+        console.error('Error viendo detalle venta:', err);
+      }
+    }
+
+    // ===== USUARIOS =====
+    async function renderUsers() {
+      try {
+        const search = (document.getElementById('searchUser')?.value || '').trim().toLowerCase();
+        let users = await getAllUsers();
+
+        if (search) {
+          users = users.filter(u =>
+            (u.nombre || '').toLowerCase().includes(search) ||
+            (u.usuario || '').toLowerCase().includes(search) ||
+            (u.rol || '').toLowerCase().includes(search)
+          );
+        }
+
+        const tbody = document.getElementById('usersTable');
+        tbody.innerHTML = users.map(u => `
+          <tr>
+            <td>${u.nombre}</td>
+            <td>${u.usuario}</td>
+            <td><span class="badge-${u.rol === 'admin' ? 'warning' : 'success'}">${u.rol}</span></td>
+            <td>${u.activo ? 'Activo' : 'Inactivo'}</td>
+            <td>${u.fecha_creacion ? new Date(u.fecha_creacion).toLocaleDateString('es-PE') : '-'}</td>
+            <td>
+              ${u.usuario !== 'admin' ? `
+                <button class="btn btn-danger btn-xs" onclick="removeUser('${u._id}')">&#128683;</button>
+              ` : '<span class="no-admin-note">&#128274;</span>'}
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Error renderizando usuarios:', err);
+      }
+    }
+
+    function openUserModal() {
+      document.getElementById('usrNombre').value = '';
+      document.getElementById('usrUsuario').value = '';
+      document.getElementById('usrContrasena').value = '';
+      document.getElementById('usrRol').value = 'empleado';
+      openModal('userModal');
+    }
+
+    async function saveUser() {
+      const form = document.getElementById('userModal');
+      clearFieldErrors(form);
+
+      const nombre = document.getElementById('usrNombre');
+      const usuario = document.getElementById('usrUsuario');
+      const contrasena = document.getElementById('usrContrasena');
+
+      let valid = true;
+      if (!validateField(nombre, { required: true, min: 2 })) valid = false;
+      if (!validateField(usuario, { required: true, min: 3 })) valid = false;
+      if (!validateField(contrasena, { required: true, min: 4 })) valid = false;
+      if (!valid) return;
+
+      try {
+        await createUser(nombre.value.trim(), usuario.value.trim(), contrasena.value, document.getElementById('usrRol').value);
+        closeModal('userModal');
+        renderUsers();
+        alert('Usuario creado exitosamente');
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    async function removeUser(id) {
+      if (confirm('¿Desactivar este usuario?')) {
+        await deleteUser(id);
+        renderUsers();
+      }
+    }
+
+    // ===== ALERTAS =====
+    async function renderAlerts() {
+      try {
+        const lowProducts = await checkLowStockAlerts();
+        const container = document.getElementById('alertsContainer');
+        const tbody = document.getElementById('alertsTable');
+
+        if (lowProducts.length === 0) {
+          container.innerHTML = '<div class="alert-banner success">&#10003; Todos los productos tienen stock suficiente.</div>';
+          tbody.innerHTML = '';
+          return;
+        }
+
+        container.innerHTML = `<div class="alert-banner">${lowProducts.length} producto(s) con stock bajo o agotado</div>`;
+        const statusPromises = lowProducts.map(p => getStockStatus(p));
+        const statuses = await Promise.all(statusPromises);
+
+        tbody.innerHTML = lowProducts.map((p, i) => `
+          <tr>
+            <td>${p.nombre}</td>
+            <td>${p.stock_actual}</td>
+            <td>${p.stock_minimo}</td>
+            <td><span class="badge-${statuses[i].class}">${statuses[i].text}</span></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Error renderizando alertas:', err);
+      }
+    }
+
+    // ===== BACKUP =====
+    function downloadBackup() {
+      alert('Backup exportado. Use la seccion de Reportes para exportar datos en JSON.');
+    }
+
+    // ===== VENDEDORES =====
+    async function renderSellerSummary() {
+      try {
+        const dateInput = document.getElementById('sellerDate');
+        if (!dateInput.value) {
+          dateInput.value = new Date().toISOString().split('T')[0];
+        }
+        const fecha = dateInput.value;
+        const sellers = await getSellerSummary(fecha, fecha);
+        const cardsContainer = document.getElementById('sellerCards');
+        const tbody = document.getElementById('sellerTable');
+
+        const totalGeneral = sellers.reduce((sum, s) => sum + s.total_vendido, 0);
+
+        if (sellers.length === 0) {
+          cardsContainer.innerHTML = '';
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-light); padding:24px">No hay ventas registradas en esta fecha</td></tr>';
+          return;
+        }
+
+        const colors = ['blue', 'green', 'orange', 'red'];
+        cardsContainer.innerHTML = sellers.map((s, i) => `
+          <div class="stat-card ${colors[i % colors.length]}">
+            <div class="stat-icon">&#128100;</div>
+            <div class="stat-label">${s.vendedor}</div>
+            <div class="stat-value">${s.num_ventas} venta${s.num_ventas !== 1 ? 's' : ''}</div>
+            <div style="font-size:13px; color:var(--text-secondary); margin-top:4px">${formatCurrency(s.total_vendido)}</div>
+          </div>
+        `).join('');
+
+        tbody.innerHTML = sellers.map(s => {
+          const pct = totalGeneral > 0 ? ((s.total_vendido / totalGeneral) * 100).toFixed(1) : 0;
+          return `
+            <tr>
+              <td style="font-weight:600">${s.vendedor}</td>
+              <td>${s.num_ventas}</td>
+              <td style="font-weight:600; color:var(--success)">${formatCurrency(s.total_vendido)}</td>
+              <td>${formatCurrency(s.promedio_venta)}</td>
+              <td>
+                <div style="display:flex; align-items:center; gap:8px">
+                  <div style="flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden">
+                    <div style="height:100%; width:${pct}%; background:var(--primary); border-radius:3px"></div>
+                  </div>
+                  <span style="font-size:12px; font-weight:600; color:var(--text-secondary); min-width:40px">${pct}%</span>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Error renderizando vendedores:', err);
+      }
+    }
+
+    // ===== GRAFICOS =====
+    let chartVentas = null;
+    let chartCategorias = null;
+
+    async function renderCharts(fechaDesde, fechaHasta) {
+      try {
+        if (chartVentas) chartVentas.destroy();
+        if (chartCategorias) chartCategorias.destroy();
+
+        const dailyData = await getDailySalesByPeriod(fechaDesde, fechaHasta);
+        const catData = await getSalesByCategory(fechaDesde, fechaHasta);
+
+      const labelsDiarios = dailyData.map(d => {
+        const fecha = new Date(d.dia + 'T12:00:00');
+        return fecha.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' });
+      });
+      const dataDiarios = dailyData.map(d => d.total);
+
+      const ctxBar = document.getElementById('chartVentasDiarias');
+      if (ctxBar) {
+        chartVentas = new Chart(ctxBar, {
+          type: 'bar',
+          data: {
+            labels: labelsDiarios,
+            datasets: [{
+              label: 'Ventas (S/)',
+              data: dataDiarios,
+              backgroundColor: 'rgba(79, 70, 229, 0.7)',
+              borderColor: 'rgba(79, 70, 229, 1)',
+              borderWidth: 1,
+              borderRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, ticks: { callback: v => 'S/ ' + v } },
+              x: { grid: { display: false } }
+            }
+          }
+        });
+      }
+
+      const catColors = ['#4f46e5', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#be185d'];
+      const ctxPie = document.getElementById('chartCategorias');
+      if (ctxPie) {
+        chartCategorias = new Chart(ctxPie, {
+          type: 'doughnut',
+          data: {
+            labels: catData.map(c => c.categoria || 'Sin categoría'),
+            datasets: [{
+              data: catData.map(c => c.total),
+              backgroundColor: catColors.slice(0, catData.length),
+              borderWidth: 2,
+              borderColor: '#fff'
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } }
+            }
+          }
+        });
+      }
+    }
+
+    async function loadReportDefaults() {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const today = now.toISOString().split('T')[0];
+      document.getElementById('reportDateFrom').value = monthStart;
+      document.getElementById('reportDateTo').value = today;
+      await generateReport();
+    }
+
+    async function generateReport() {
+      const desde = document.getElementById('reportDateFrom').value;
+      const hasta = document.getElementById('reportDateTo').value;
+      if (!desde || !hasta) return;
+
+      try {
+        const summary = await getIncomeVsExpense(desde, hasta);
+        document.getElementById('reportIncome').textContent = formatCurrency(summary.ingresos);
+        document.getElementById('reportExpense').textContent = formatCurrency(summary.egresos);
+        document.getElementById('reportProfit').textContent = formatCurrency(summary.ganancia);
+
+        const topProducts = await getTopProducts(10);
+        document.getElementById('topProductsTable').innerHTML = topProducts.length === 0
+          ? '<tr><td colspan="3" style="text-align:center; color:var(--text-light); padding:24px">Sin datos disponibles</td></tr>'
+          : topProducts.map(p => `
+            <tr><td>${p.nombre}</td><td>${p.total_vendido}</td><td>${formatCurrency(p.total_ingreso)}</td></tr>
+          `).join('');
+
+        const daily = await getDailySalesByPeriod(desde, hasta);
+        document.getElementById('dailySalesTable').innerHTML = daily.length === 0
+          ? '<tr><td colspan="3" style="text-align:center; color:var(--text-light); padding:24px">Sin datos disponibles</td></tr>'
+          : daily.map(d => `
+            <tr><td>${d.dia}</td><td>${d.num_ventas}</td><td>${formatCurrency(d.total)}</td></tr>
+          `).join('');
+
+        await renderCharts(desde, hasta);
+      } catch (err) {
+        console.error('Error generando reporte:', err);
+      }
+    }
+
+    // ===== TICKET =====
+    let lastVentaId = null;
+
+    async function generateTicket(venta) {
+      try {
+        lastVentaId = venta._id;
+        const detalles = await getSaleDetails(venta._id);
+
+        let ticketHtml = `
+          <div class="ticket-print" id="ticketPrint">
+            <div class="ticket-header">
+              <div class="ticket-logo">&#128230;</div>
+              <div class="ticket-name">Mi Tienda Express</div>
+              <div class="ticket-subtitle">Sistema de Inventario</div>
+            </div>
+            <div class="ticket-divider">================================</div>
+            <div class="ticket-info">
+              <div><span>Fecha:</span><span>${new Date(venta.fecha).toLocaleString('es-PE')}</span></div>
+              <div><span>Ticket N°:</span><span>#${venta._id?.slice(-6)}</span></div>
+              <div><span>Cliente:</span><span>${venta.cliente}</span></div>
+              <div><span>Vendedor:</span><span>${venta.usuario_nombre}</span></div>
+            </div>
+            <div class="ticket-divider">--------------------------------</div>
+            <div class="ticket-products">
+              <div class="ticket-col-header">
+                <span>Producto</span>
+                <span>Cant</span>
+                <span>Precio</span>
+                <span>Subtotal</span>
+              </div>
+              ${detalles.map(d => `
+                <div class="ticket-col-row">
+                  <span>${d.producto_nombre.substring(0, 18)}</span>
+                  <span>${d.cantidad}</span>
+                  <span>${formatCurrency(d.precio_unitario)}</span>
+                  <span>${formatCurrency(d.subtotal)}</span>
+                </div>
+              `).join('')}
+            </div>
+            <div class="ticket-divider">================================</div>
+            <div class="ticket-total">
+              <span>TOTAL:</span>
+              <span>${formatCurrency(venta.total)}</span>
+            </div>
+            <div class="ticket-footer">
+              <p>¡Gracias por su compra!</p>
+              <p>Vuelva pronto</p>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('ticketContent').innerHTML = ticketHtml;
+        openModal('ticketModal');
+      } catch (err) {
+        console.error('Error generando ticket:', err);
+      }
+    }
+
+    function printTicket() {
+      const ticketContent = document.getElementById('ticketPrint');
+      if (!ticketContent) return;
+
+      const win = window.open('', '_blank', 'width=320,height=600');
+      win.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Ticket #${lastVentaId}</title>
+          <style>
+            @page { size: 80mm auto; margin: 2mm; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Courier New', monospace; font-size: 11px; width: 76mm; padding: 2mm; }
+            .ticket-print { width: 100%; }
+            .ticket-header { text-align: center; margin-bottom: 4px; }
+            .ticket-logo { font-size: 28px; }
+            .ticket-name { font-size: 14px; font-weight: 700; margin: 2px 0; }
+            .ticket-subtitle { font-size: 10px; color: #666; }
+            .ticket-divider { text-align: center; font-size: 10px; color: #999; margin: 4px 0; letter-spacing: 1px; }
+            .ticket-info { font-size: 10px; margin: 4px 0; }
+            .ticket-info div { display: flex; justify-content: space-between; margin: 1px 0; }
+            .ticket-info span:last-child { font-weight: 600; }
+            .ticket-col-header, .ticket-col-row { display: grid; grid-template-columns: 2fr 0.5fr 1fr 1fr; font-size: 10px; padding: 1px 0; }
+            .ticket-col-header { font-weight: 700; border-bottom: 1px dashed #ccc; margin-bottom: 2px; }
+            .ticket-total { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin: 6px 0; border-top: 2px solid #000; padding-top: 4px; }
+            .ticket-footer { text-align: center; margin-top: 8px; font-size: 10px; }
+            .ticket-footer p { margin: 1px 0; }
+            @media print { body { width: 76mm; } }
+          </style>
+        </head>
+        <body>${ticketContent.outerHTML}</body>
+        </html>
+      `);
+      win.document.close();
+      setTimeout(() => { win.print(); }, 500);
+    }
+  </script>
+</body>
+</html>

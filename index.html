@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iniciar Sesión - Inventario</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-box">
+      <div class="logo-icon">&#128230;</div>
+      <h1>Sistema de Inventario</h1>
+      <p class="subtitle">Control de productos, ventas e inventario</p>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="usuario">Usuario</label>
+          <input type="text" id="usuario" placeholder="Ingrese su usuario" required autofocus>
+        </div>
+        <div class="form-group">
+          <label for="contrasena">Contraseña</label>
+          <input type="password" id="contrasena" placeholder="Ingrese su contraseña" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-login">&#128274; Iniciar Sesi&#243;n</button>
+        <p class="error-msg" id="errorMsg"></p>
+      </form>
+      <p style="text-align:center; margin-top:20px; font-size:12px; color:#94a3b8; line-height:1.8">
+        <strong>Admin:</strong> admin / admin123<br>
+        <strong>Empleado:</strong> carlos / empleado123
+      </p>
+    </div>
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const user = getCurrentUser();
+      if (user && getToken()) {
+        window.location.href = 'dashboard.html';
+        return;
+      }
+
+      document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const usuario = document.getElementById('usuario').value.trim();
+        const contrasena = document.getElementById('contrasena').value;
+        const errorMsg = document.getElementById('errorMsg');
+        errorMsg.style.display = 'none';
+
+        if (!usuario || !contrasena) {
+          errorMsg.textContent = 'Ingrese usuario y contraseña';
+          errorMsg.style.display = 'block';
+          return;
+        }
+
+        try {
+          const user = await loginUser(usuario, contrasena);
+          if (user) {
+            window.location.href = 'dashboard.html';
+          }
+        } catch (err) {
+          errorMsg.textContent = err.message || 'Usuario o contraseña incorrectos';
+          errorMsg.style.display = 'block';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
