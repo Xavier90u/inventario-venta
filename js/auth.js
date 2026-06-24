@@ -55,6 +55,13 @@ async function deleteUser(id) {
   return await apiFetch(`/users/${id}/deactivate`, { method: 'PUT' });
 }
 
+async function updateUser(id, data) {
+  return await apiFetch(`/users/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  });
+}
+
 async function hashPassword(password) {
   return password;
 }

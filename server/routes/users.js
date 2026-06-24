@@ -44,6 +44,20 @@ router.put('/:id/deactivate', auth, adminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.put('/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const { nombre, usuario, contrasena, rol } = req.body;
+    const update = { nombre, usuario, rol };
+    if (contrasena) {
+      update.contrasena = await bcrypt.hash(contrasena, 10);
+    }
+    const existing = await Usuario.findOne({ usuario, _id: { $ne: req.params.id } });
+    if (existing) return res.status(400).json({ error: 'El nombre de usuario ya esta en uso' });
+    const user = await Usuario.findByIdAndUpdate(req.params.id, update, { new: true }).select('-contrasena');
+    res.json(user);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/seed', async (req, res) => {
   try {
     const count = await Usuario.countDocuments();

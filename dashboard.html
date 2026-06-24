@@ -499,10 +499,11 @@
   <div class="modal-overlay" id="userModal">
     <div class="modal">
       <div class="modal-header">
-        <h2>Crear Usuario</h2>
+        <h2 id="userModalTitle">Crear Usuario</h2>
         <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
       </div>
       <div class="modal-body">
+        <input type="hidden" id="usrId">
         <div class="form-group">
           <label>Nombre *</label>
           <input type="text" id="usrNombre" required>
@@ -514,8 +515,8 @@
           <div class="field-error"></div>
         </div>
         <div class="form-group">
-          <label>Contraseña *</label>
-          <input type="password" id="usrContrasena" required>
+          <label id="usrContrasenaLabel">Contrasena *</label>
+          <input type="password" id="usrContrasena">
           <div class="field-error"></div>
         </div>
         <div class="form-group">
@@ -528,7 +529,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('userModal')">&#10005; Cancelar</button>
-        <button class="btn btn-primary" onclick="saveUser()">&#10003; Crear</button>
+        <button class="btn btn-primary" onclick="saveUser()">&#10003; Guardar</button>
       </div>
     </div>
   </div>
@@ -1191,7 +1192,7 @@
         }
 
         const tbody = document.getElementById('usersTable');
-        tbody.innerHTML = users.map(u => `
+        tbody.innerHTML = users.map((u, i) => `
           <tr>
             <td>${u.nombre}</td>
             <td>${u.usuario}</td>
@@ -1199,29 +1200,40 @@
             <td>${u.activo ? 'Activo' : 'Inactivo'}</td>
             <td>${u.fecha_creacion ? new Date(u.fecha_creacion).toLocaleDateString('es-PE') : '-'}</td>
             <td>
+              <button class="btn btn-warning btn-xs" onclick="editUser(${i})">&#9998;</button>
               ${u.usuario !== 'admin' ? `
                 <button class="btn btn-danger btn-xs" onclick="removeUser('${u._id}')">&#128683;</button>
-              ` : '<span class="no-admin-note">&#128274;</span>'}
+              ` : ''}
             </td>
           </tr>
         `).join('');
+        window._usersList = users;
       } catch (err) {
         console.error('Error renderizando usuarios:', err);
       }
     }
 
-    function openUserModal() {
-      document.getElementById('usrNombre').value = '';
-      document.getElementById('usrUsuario').value = '';
+    function openUserModal(user = null) {
+      document.getElementById('userModalTitle').textContent = user ? 'Editar Usuario' : 'Crear Usuario';
+      document.getElementById('usrId').value = user ? user._id : '';
+      document.getElementById('usrNombre').value = user ? user.nombre : '';
+      document.getElementById('usrUsuario').value = user ? user.usuario : '';
       document.getElementById('usrContrasena').value = '';
-      document.getElementById('usrRol').value = 'empleado';
+      document.getElementById('usrContrasenaLabel').textContent = user ? 'Contrasena (dejar vacio para no cambiar)' : 'Contrasena *';
+      document.getElementById('usrRol').value = user ? user.rol : 'empleado';
       openModal('userModal');
+    }
+
+    function editUser(index) {
+      const user = window._usersList[index];
+      if (user) openUserModal(user);
     }
 
     async function saveUser() {
       const form = document.getElementById('userModal');
       clearFieldErrors(form);
 
+      const id = document.getElementById('usrId').value;
       const nombre = document.getElementById('usrNombre');
       const usuario = document.getElementById('usrUsuario');
       const contrasena = document.getElementById('usrContrasena');
@@ -1229,14 +1241,21 @@
       let valid = true;
       if (!validateField(nombre, { required: true, min: 2 })) valid = false;
       if (!validateField(usuario, { required: true, min: 3 })) valid = false;
-      if (!validateField(contrasena, { required: true, min: 4 })) valid = false;
+      if (!id && !contrasena.value) { addFieldError(contrasena, 'La contrasena es obligatoria'); valid = false; }
+      if (contrasena.value && contrasena.value.length < 4) { addFieldError(contrasena, 'Minimo 4 caracteres'); valid = false; }
       if (!valid) return;
 
       try {
-        await createUser(nombre.value.trim(), usuario.value.trim(), contrasena.value, document.getElementById('usrRol').value);
+        if (id) {
+          const data = { nombre: nombre.value.trim(), usuario: usuario.value.trim(), rol: document.getElementById('usrRol').value };
+          if (contrasena.value) data.contrasena = contrasena.value;
+          await updateUser(id, data);
+        } else {
+          await createUser(nombre.value.trim(), usuario.value.trim(), contrasena.value, document.getElementById('usrRol').value);
+        }
         closeModal('userModal');
         renderUsers();
-        alert('Usuario creado exitosamente');
+        alert(id ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente');
       } catch (e) {
         alert('Error: ' + e.message);
       }
