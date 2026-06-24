@@ -550,17 +550,17 @@
       document.body.classList.toggle('dark');
       const isDark = document.body.classList.contains('dark');
       localStorage.setItem('darkMode', isDark);
-      document.getElementById('darkToggle').textContent = isDark ? '&#9788;' : '&#9789;';
+      document.getElementById('darkToggle').innerHTML = isDark ? '&#9788;' : '&#9789;';
       const sb = document.getElementById('darkToggleSidebar');
-      if (sb) sb.textContent = isDark ? '&#9788;' : '&#9789;';
+      if (sb) sb.innerHTML = isDark ? '&#9788;' : '&#9789;';
     }
 
     if (localStorage.getItem('darkMode') === 'true') {
       document.body.classList.add('dark');
       document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('darkToggle').textContent = '&#9788;';
+        document.getElementById('darkToggle').innerHTML = '&#9788;';
         const sb = document.getElementById('darkToggleSidebar');
-        if (sb) sb.textContent = '&#9788;';
+        if (sb) sb.innerHTML = '&#9788;';
       });
     }
 
@@ -1167,7 +1167,7 @@
         html += '</tbody></table>';
         html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:2px solid var(--border)">
           <span style="font-size:16px; font-weight:700">Total: ${formatCurrency(total)}</span>
-          <button class="btn btn-primary btn-sm" onclick="closeModal('saleDetailModal'); generateTicket('${ventaId}')">&#128424; Imprimir Ticket</button>
+          <button class="btn btn-primary btn-sm" onclick="closeModal('saleDetailModal'); printTicketFromId('${ventaId}')">&#128424; Imprimir Ticket</button>
         </div>`;
         container.innerHTML = html;
         openModal('saleDetailModal');
@@ -1451,6 +1451,16 @@
 
     // ===== TICKET =====
     let lastVentaId = null;
+
+    async function printTicketFromId(ventaId) {
+      try {
+        const allSales = await getAllSales();
+        const venta = allSales.find(s => s._id === ventaId);
+        if (venta) generateTicket(venta);
+      } catch (err) {
+        console.error('Error obteniendo venta:', err);
+      }
+    }
 
     async function generateTicket(venta) {
       try {
