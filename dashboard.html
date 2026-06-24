@@ -112,6 +112,13 @@
             <button class="btn btn-primary btn-sm" onclick="openProductModal()" id="btnAddProduct">&#10010;</button>
           </div>
         </div>
+        <div class="bulk-bar" id="bulkBar">
+          <span class="bulk-bar-text"><span id="bulkCount">0</span> seleccionados</span>
+          <div class="bulk-bar-actions">
+            <button class="btn btn-xs" onclick="bulkDeactivate()">&#128683; Desactivar</button>
+            <button class="btn btn-xs" onclick="clearBulkSelection()">Cancelar</button>
+          </div>
+        </div>
         <div class="card">
           <div class="card-body">
             <div class="toolbar">
@@ -123,6 +130,7 @@
               <table>
                 <thead>
                     <tr>
+                      <th><input type="checkbox" class="table-checkbox" id="selectAllProducts" onchange="toggleSelectAll(this)"></th>
                       <th>Nombre</th><th>Categor&#237;a</th><th>Compra (S/)</th><th>Venta (S/)</th>
                       <th>Stock</th><th>M&#237;nimo</th><th>Estado</th><th>Acciones</th>
                     </tr>
@@ -991,15 +999,20 @@
         document.getElementById('btnAddProduct').style.display = isAdm ? '' : 'none';
 
         if (products.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-light); padding:24px">No hay productos registrados</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">&#128230;</div><h3>No hay productos</h3><p>Comienza agregando tu primer producto al inventario</p>' + (isAdmin() ? '<button class="btn btn-primary btn-sm" onclick="openProductModal()">&#10010; Agregar Producto</button>' : '') + '</div></td></tr>';
           return;
         }
 
         const statusPromises = products.map(p => getStockStatus(p));
         const statuses = await Promise.all(statusPromises);
 
+        window._productsList = products;
+        document.getElementById('selectAllProducts').checked = false;
+        updateBulkBar();
+
         tbody.innerHTML = products.map((p, i) => `
           <tr>
+            <td><input type="checkbox" class="table-checkbox product-cb" data-index="${i}" onchange="updateBulkBar()"></td>
             <td>${p.nombre}</td>
             <td>${p.categoria || '-'}</td>
             <td>${formatCurrency(p.precio_compra)}</td>
@@ -1082,11 +1095,55 @@
 
     async function removeProduct(id) {
       if (!requireAdmin()) return;
-      if (confirm('¿Está seguro de eliminar este producto?')) {
+      const products = await getAllProducts();
+      const product = products.find(p => p._id === id);
+      const name = product ? product.nombre : 'este producto';
+      if (confirm(`¿Desactivar "${name}"? Podra reactivarlo despues desde Productos.`)) {
         await deleteProduct(id);
+        showToast('Producto desactivado', 'success');
         renderProducts();
         updateAlertBadge();
       }
+    }
+
+    async function doReactivateProduct(id) {
+      if (!requireAdmin()) return;
+      await reactivateProduct(id);
+      showToast('Producto reactivado', 'success');
+      renderProducts();
+    }
+
+    function toggleSelectAll(cb) {
+      document.querySelectorAll('.product-cb').forEach(c => c.checked = cb.checked);
+      updateBulkBar();
+    }
+
+    function updateBulkBar() {
+      const cbs = document.querySelectorAll('.product-cb');
+      const checked = document.querySelectorAll('.product-cb:checked').length;
+      document.getElementById('bulkCount').textContent = checked;
+      document.getElementById('bulkBar').classList.toggle('active', checked > 0);
+      document.getElementById('selectAllProducts').checked = cbs.length > 0 && checked === cbs.length;
+    }
+
+    function clearBulkSelection() {
+      document.querySelectorAll('.product-cb').forEach(c => c.checked = false);
+      document.getElementById('selectAllProducts').checked = false;
+      updateBulkBar();
+    }
+
+    async function bulkDeactivate() {
+      if (!requireAdmin()) return;
+      const ids = [...document.querySelectorAll('.product-cb:checked')].map(cb => {
+        const idx = parseInt(cb.dataset.index);
+        return window._productsList[idx]._id;
+      });
+      if (!ids.length) return;
+      if (!confirm(`¿Desactivar ${ids.length} producto(s)?`)) return;
+      for (const id of ids) { await deleteProduct(id); }
+      showToast(`${ids.length} producto(s) desactivado(s)`, 'success');
+      clearBulkSelection();
+      renderProducts();
     }
 
     // ===== INVENTARIO =====
@@ -1126,7 +1183,7 @@
         const tbody = document.getElementById('movementsTable');
 
         if (movements.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-light); padding:24px">No hay movimientos registrados</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">&#128203;</div><h3>No hay movimientos</h3><p>Registra entradas y salidas de inventario</p>' + (isAdmin() ? '<button class="btn btn-primary btn-sm" onclick="openMovementModal()">&#10010; Registrar Movimiento</button>' : '') + '</div></td></tr>';
           return;
         }
 
@@ -1201,7 +1258,7 @@
         const tbody = document.getElementById('salesTable');
 
         if (sales.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-light); padding:24px">No hay ventas registradas</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">&#128176;</div><h3>No hay ventas</h3><p>Realiza tu primera venta para ver los registros aqui</p><button class="btn btn-primary btn-sm" onclick="openSaleModal()">&#10010; Nueva Venta</button></div></td></tr>';
           return;
         }
 

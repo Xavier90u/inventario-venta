@@ -32,6 +32,10 @@ async function deleteProduct(id) {
   return await apiFetch(`/products/${id}`, { method: 'DELETE' });
 }
 
+async function reactivateProduct(id) {
+  return await apiFetch(`/products/${id}/reactivate`, { method: 'PUT' });
+}
+
 async function getLowStockProducts() {
   return await apiFetch('/products/low-stock');
 }

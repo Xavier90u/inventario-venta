@@ -74,4 +74,11 @@ router.delete('/:id', auth, adminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.put('/:id/reactivate', auth, adminOnly, async (req, res) => {
+  try {
+    await Producto.findByIdAndUpdate(req.params.id, { activo: true });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
