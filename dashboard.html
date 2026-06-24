@@ -336,16 +336,14 @@
         <div class="page-header">
           <h1>Vendedores</h1>
         </div>
-        <div class="toolbar" style="margin-bottom:20px">
-          <div class="filter-bar" style="margin-bottom:0">
-            <div>
-              <label>Desde</label>
-              <input type="date" id="sellerDateFrom" onchange="renderSellerSummary()">
-            </div>
-            <div>
-              <label>Hasta</label>
-              <input type="date" id="sellerDateTo" onchange="renderSellerSummary()">
-            </div>
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label class="filter-label">Desde</label>
+            <input type="date" id="sellerDateFrom" class="filter-input" onchange="renderSellerSummary()">
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Hasta</label>
+            <input type="date" id="sellerDateTo" class="filter-input" onchange="renderSellerSummary()">
           </div>
         </div>
         <div class="stats-grid" id="sellerCards"></div>
@@ -1606,7 +1604,8 @@
         `;
 
         if (sellers.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-light); padding:24px">No hay ventas en este periodo</td></tr>';
+          cardsContainer.innerHTML = '';
+          tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">&#128101;</div><h3>Sin datos de vendedores</h3><p>No hay ventas registradas en este periodo</p></div></td></tr>';
           return;
         }
 
