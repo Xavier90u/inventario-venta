@@ -39,8 +39,11 @@
     <main class="main-content">
       <div class="top-bar">
         <button class="hamburger" onclick="toggleSidebar()">&#9776;</button>
-        <h1 style="font-size:16px">Inventario</h1>
-        <button class="dark-toggle" onclick="toggleDarkMode()" title="Modo oscuro" id="darkToggle">&#9789;</button>
+        <h1 style="font-size:16px" id="topBarTitle">Dashboard</h1>
+        <div style="display:flex; gap:8px; align-items:center">
+          <button class="btn btn-outline btn-sm" onclick="toggleGlobalSearch()" title="Buscar (Ctrl+K)">&#128269;</button>
+          <button class="dark-toggle" onclick="toggleDarkMode()" title="Modo oscuro" id="darkToggle">&#9789;</button>
+        </div>
       </div>
       <!-- DASHBOARD -->
       <section id="section-dashboard" class="content-section">
@@ -542,9 +545,185 @@
   <script src="js/sales.js"></script>
   <script src="js/reports.js"></script>
   <script src="js/alerts.js"></script>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- GLOBAL SEARCH -->
+  <div class="global-search-overlay" id="globalSearchOverlay">
+    <div class="global-search-box">
+      <input type="text" class="global-search-input" id="globalSearchInput" placeholder="Buscar productos, ventas, movimientos..." autocomplete="off">
+      <div class="global-search-results" id="globalSearchResults"></div>
+      <div class="global-search-hint">
+        <span><kbd>ESC</kbd> para cerrar</span>
+        <span><kbd>&#8593;&#8595;</kbd> navegar</span>
+      </div>
+    </div>
+  </div>
+
   <script>
     let currentCart = [];
     let currentMovementFilter = 'todos';
+
+    // ===== TOAST NOTIFICATIONS =====
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const icons = { success: '&#10003;', error: '&#10007;', warning: '&#9888;', info: '&#8505;' };
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || icons.info}</span>
+        <span class="toast-msg">${message}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('removing');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // ===== SPINNERS =====
+    function showSpinner(cardEl) {
+      const existing = cardEl.querySelector('.spinner-overlay');
+      if (existing) return;
+      const overlay = document.createElement('div');
+      overlay.className = 'spinner-overlay';
+      overlay.innerHTML = '<div class="spinner"></div>';
+      cardEl.appendChild(overlay);
+    }
+
+    function hideSpinner(cardEl) {
+      const overlay = cardEl.querySelector('.spinner-overlay');
+      if (overlay) overlay.remove();
+    }
+
+    // ===== FOCUS TRAP + ESCAPE FOR MODALS =====
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      modal.classList.add('active');
+      const firstInput = modal.querySelector('input:not([type=hidden]), select, textarea');
+      if (firstInput) setTimeout(() => firstInput.focus(), 100);
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const openModals = document.querySelectorAll('.modal-overlay.active');
+        if (openModals.length > 0) {
+          openModals[openModals.length - 1].classList.remove('active');
+          document.body.style.overflow = '';
+          return;
+        }
+        const gs = document.getElementById('globalSearchOverlay');
+        if (gs.classList.contains('active')) {
+          gs.classList.remove('active');
+        }
+      }
+    });
+
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+      });
+    });
+
+    // ===== GLOBAL SEARCH (Ctrl+K) =====
+    let gsTimeout = null;
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        toggleGlobalSearch();
+      }
+    });
+
+    function toggleGlobalSearch() {
+      const overlay = document.getElementById('globalSearchOverlay');
+      overlay.classList.toggle('active');
+      if (overlay.classList.contains('active')) {
+        const input = document.getElementById('globalSearchInput');
+        input.value = '';
+        document.getElementById('globalSearchResults').innerHTML = '';
+        setTimeout(() => input.focus(), 100);
+      }
+    }
+
+    document.getElementById('globalSearchOverlay').addEventListener('click', (e) => {
+      if (e.target.id === 'globalSearchOverlay') toggleGlobalSearch();
+    });
+
+    document.getElementById('globalSearchInput').addEventListener('input', (e) => {
+      clearTimeout(gsTimeout);
+      const query = e.target.value.trim();
+      if (query.length < 2) {
+        document.getElementById('globalSearchResults').innerHTML = '';
+        return;
+      }
+      gsTimeout = setTimeout(() => performGlobalSearch(query), 300);
+    });
+
+    async function performGlobalSearch(query) {
+      const resultsEl = document.getElementById('globalSearchResults');
+      resultsEl.innerHTML = '<div class="global-search-empty">Buscando...</div>';
+
+      try {
+        const [products, sales, movements] = await Promise.all([
+          getAllProducts().catch(() => []),
+          getAllSales().catch(() => []),
+          getMovements().catch(() => [])
+        ]);
+
+        const q = query.toLowerCase();
+        const matchedProducts = products.filter(p => (p.nombre || '').toLowerCase().includes(q) || (p.categoria || '').toLowerCase().includes(q)).slice(0, 5);
+        const matchedSales = sales.filter(s => (s.cliente || '').toLowerCase().includes(q) || (s.usuario_nombre || '').toLowerCase().includes(q)).slice(0, 5);
+        const matchedMovements = movements.filter(m => (m.producto_nombre || '').toLowerCase().includes(q) || (m.motivo || '').toLowerCase().includes(q)).slice(0, 5);
+
+        if (matchedProducts.length === 0 && matchedSales.length === 0 && matchedMovements.length === 0) {
+          resultsEl.innerHTML = '<div class="global-search-empty">No se encontraron resultados para "' + query + '"</div>';
+          return;
+        }
+
+        let html = '';
+        if (matchedProducts.length > 0) {
+          html += '<div class="global-search-group">Productos</div>';
+          html += matchedProducts.map(p => `
+            <div class="global-search-item gs-product" onclick="toggleGlobalSearch(); showSection('productos')">
+              <div class="gs-icon">&#128230;</div>
+              <div><strong>${p.nombre}</strong><br><small style="color:var(--text-light)">${p.categoria || 'Sin categoria'} - S/ ${p.precio_venta}</small></div>
+            </div>
+          `).join('');
+        }
+        if (matchedSales.length > 0) {
+          html += '<div class="global-search-group">Ventas</div>';
+          html += matchedSales.map(s => `
+            <div class="global-search-item gs-sale" onclick="toggleGlobalSearch(); showSection('ventas')">
+              <div class="gs-icon">&#128176;</div>
+              <div><strong>#${s._id?.slice(-6)}</strong> - ${s.cliente}<br><small style="color:var(--text-light)">S/ ${s.total} - ${new Date(s.fecha).toLocaleDateString('es-PE')}</small></div>
+            </div>
+          `).join('');
+        }
+        if (matchedMovements.length > 0) {
+          html += '<div class="global-search-group">Movimientos</div>';
+          html += matchedMovements.map(m => `
+            <div class="global-search-item gs-movement" onclick="toggleGlobalSearch(); showSection('inventario')">
+              <div class="gs-icon">&#128203;</div>
+              <div><strong>${m.producto_nombre}</strong> - ${m.tipo}<br><small style="color:var(--text-light)">${m.cantidad} uds - ${m.motivo || 'Sin motivo'}</small></div>
+            </div>
+          `).join('');
+        }
+        resultsEl.innerHTML = html;
+      } catch (err) {
+        resultsEl.innerHTML = '<div class="global-search-empty">Error al buscar</div>';
+      }
+    }
 
     // ===== DARK MODE =====
     function toggleDarkMode() {
@@ -602,7 +781,7 @@
           rows.push([p.nombre, p.categoria || '-', p.precio_compra, p.precio_venta, p.stock_actual, p.stock_minimo, status.text]);
         }
         exportToExcel(headers, rows, 'productos');
-      } catch (e) { alert('Error exportando: ' + e.message); }
+      } catch (e) { showToast('Error exportando: ' + e.message, 'error'); }
     }
 
     async function exportSalesToExcel() {
@@ -611,7 +790,7 @@
         const headers = ['ID', 'Cliente', 'Total', 'Fecha', 'Vendedor'];
         const rows = sales.map(s => [s._id?.slice(-6), s.cliente, s.total, new Date(s.fecha).toLocaleDateString('es-PE'), s.usuario_nombre]);
         exportToExcel(headers, rows, 'ventas');
-      } catch (e) { alert('Error exportando: ' + e.message); }
+      } catch (e) { showToast('Error exportando: ' + e.message, 'error'); }
     }
 
     function exportReportToPDF() {
@@ -714,6 +893,9 @@
       if (navLink) navLink.classList.add('active');
       closeSidebar();
 
+      const titles = { dashboard: 'Dashboard', productos: 'Productos', inventario: 'Inventario', ventas: 'Ventas', vendedores: 'Vendedores', reportes: 'Reportes', usuarios: 'Usuarios', alertas: 'Alertas' };
+      document.getElementById('topBarTitle').textContent = titles[name] || name;
+
       if (name === 'dashboard') loadDashboard();
       else if (name === 'productos') renderProducts();
       else if (name === 'inventario') renderMovements();
@@ -730,10 +912,6 @@
 
     function closeModal(id) {
       document.getElementById(id).classList.remove('active');
-    }
-
-    function openModal(id) {
-      document.getElementById(id).classList.add('active');
     }
 
     // ===== DASHBOARD =====
@@ -898,7 +1076,7 @@
         renderProducts();
         updateAlertBadge();
       } catch (e) {
-        alert('Error: ' + e.message);
+        showToast('Error: ' + e.message, 'error');
       }
     }
 
@@ -987,11 +1165,11 @@
       const user = getCurrentUser();
 
       if (!productoId) {
-        alert('Seleccione un producto');
+        showToast('Seleccione un producto', 'warning');
         return;
       }
       if (!cantidad || cantidad <= 0) {
-        alert('La cantidad debe ser mayor a 0');
+        showToast('La cantidad debe ser mayor a 0', 'warning');
         return;
       }
 
@@ -1001,7 +1179,7 @@
         renderMovements();
         updateAlertBadge();
       } catch (e) {
-        alert('Error: ' + e.message);
+        showToast('Error: ' + e.message, 'error');
       }
     }
 
@@ -1125,7 +1303,7 @@
 
     async function completeSale() {
       if (currentCart.length === 0) {
-        alert('Agregue al menos un producto al carrito');
+        showToast('Agregue al menos un producto al carrito', 'warning');
         return;
       }
 
@@ -1134,7 +1312,7 @@
 
       for (const item of currentCart) {
         if (item.cantidad > item.maxStock) {
-          alert(`Stock insuficiente para "${item.nombre}" (max: ${item.maxStock})`);
+          showToast(`Stock insuficiente para "${item.nombre}" (max: ${item.maxStock})`, 'warning');
           return;
         }
       }
@@ -1148,10 +1326,10 @@
         if (confirm(`Venta registrada.\n\n¿Desea imprimir el ticket?`)) {
           generateTicket(venta);
         } else {
-          alert(`Venta registrada exitosamente`);
+          showToast('Venta registrada exitosamente', 'success');
         }
       } catch (e) {
-        alert('Error: ' + e.message);
+        showToast('Error: ' + e.message, 'error');
       }
     }
 
@@ -1255,9 +1433,9 @@
         }
         closeModal('userModal');
         renderUsers();
-        alert(id ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente');
+        showToast(id ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente', 'success');
       } catch (e) {
-        alert('Error: ' + e.message);
+        showToast('Error: ' + e.message, 'error');
       }
     }
 
@@ -1300,7 +1478,7 @@
 
     // ===== BACKUP =====
     function downloadBackup() {
-      alert('Backup exportado. Use la seccion de Reportes para exportar datos en JSON.');
+      showToast('Use la seccion de Reportes para exportar datos', 'info');
     }
 
     // ===== VENDEDORES =====
