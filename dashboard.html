@@ -333,24 +333,20 @@
 
       <!-- VENDEDORES -->
       <section id="section-vendedores" class="content-section" style="display:none">
-        <div class="page-header">
+        <div class="page-header" style="margin-bottom:12px">
           <h1>Vendedores</h1>
         </div>
-        <div class="card" style="margin-bottom:18px">
-          <div class="card-body" style="padding:14px 18px">
-            <div class="filter-bar" style="margin-bottom:0">
-              <div class="filter-group">
-                <label class="filter-label">Desde</label>
-                <input type="date" id="sellerDateFrom" class="filter-input" onchange="renderSellerSummary()">
-              </div>
-              <div class="filter-group">
-                <label class="filter-label">Hasta</label>
-                <input type="date" id="sellerDateTo" class="filter-input" onchange="renderSellerSummary()">
-              </div>
-            </div>
+        <div class="filter-bar" style="margin-bottom:12px">
+          <div class="filter-group">
+            <label class="filter-label">Desde</label>
+            <input type="date" id="sellerDateFrom" class="filter-input" onchange="renderSellerSummary()">
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Hasta</label>
+            <input type="date" id="sellerDateTo" class="filter-input" onchange="renderSellerSummary()">
           </div>
         </div>
-        <div id="sellerCards"></div>
+        <div class="stats-grid" id="sellerCards" style="margin-bottom:12px"></div>
         <div class="card">
           <div class="card-header"><h2>Detalle por Vendedor</h2></div>
           <div class="card-body">
@@ -1590,22 +1586,20 @@
         const totalGanancia = sellers.reduce((sum, s) => sum + (s.ganancia || 0), 0);
 
         cardsContainer.innerHTML = `
-          <div class="stats-grid" style="margin-bottom:18px">
-            <div class="stat-card blue">
-              <div class="stat-icon">&#128178;</div>
-              <div class="stat-label">Total Ventas</div>
-              <div class="stat-value">${formatCurrency(totalVentas)}</div>
-            </div>
-            <div class="stat-card orange">
-              <div class="stat-icon">&#128179;</div>
-              <div class="stat-label">Total Inversión</div>
-              <div class="stat-value">${formatCurrency(totalInversion)}</div>
-            </div>
-            <div class="stat-card green">
-              <div class="stat-icon">&#128200;</div>
-              <div class="stat-label">Total Ganancia</div>
-              <div class="stat-value">${formatCurrency(totalGanancia)}</div>
-            </div>
+          <div class="stat-card blue">
+            <div class="stat-icon">&#128178;</div>
+            <div class="stat-label">Total Ventas</div>
+            <div class="stat-value">${formatCurrency(totalVentas)}</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="stat-icon">&#128179;</div>
+            <div class="stat-label">Total Inversión</div>
+            <div class="stat-value">${formatCurrency(totalInversion)}</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-icon">&#128200;</div>
+            <div class="stat-label">Total Ganancia</div>
+            <div class="stat-value">${formatCurrency(totalGanancia)}</div>
           </div>
         `;
 
