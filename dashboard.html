@@ -1350,59 +1350,62 @@
         const dailyData = await getDailySalesByPeriod(fechaDesde, fechaHasta);
         const catData = await getSalesByCategory(fechaDesde, fechaHasta);
 
-      const labelsDiarios = dailyData.map(d => {
-        const fecha = new Date(d.dia + 'T12:00:00');
-        return fecha.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' });
-      });
-      const dataDiarios = dailyData.map(d => d.total);
-
-      const ctxBar = document.getElementById('chartVentasDiarias');
-      if (ctxBar) {
-        chartVentas = new Chart(ctxBar, {
-          type: 'bar',
-          data: {
-            labels: labelsDiarios,
-            datasets: [{
-              label: 'Ventas (S/)',
-              data: dataDiarios,
-              backgroundColor: 'rgba(79, 70, 229, 0.7)',
-              borderColor: 'rgba(79, 70, 229, 1)',
-              borderWidth: 1,
-              borderRadius: 6
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: {
-              y: { beginAtZero: true, ticks: { callback: v => 'S/ ' + v } },
-              x: { grid: { display: false } }
-            }
-          }
+        const labelsDiarios = dailyData.map(d => {
+          const fecha = new Date(d.dia + 'T12:00:00');
+          return fecha.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' });
         });
-      }
+        const dataDiarios = dailyData.map(d => d.total);
 
-      const catColors = ['#4f46e5', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#be185d'];
-      const ctxPie = document.getElementById('chartCategorias');
-      if (ctxPie) {
-        chartCategorias = new Chart(ctxPie, {
-          type: 'doughnut',
-          data: {
-            labels: catData.map(c => c.categoria || 'Sin categoría'),
-            datasets: [{
-              data: catData.map(c => c.total),
-              backgroundColor: catColors.slice(0, catData.length),
-              borderWidth: 2,
-              borderColor: '#fff'
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } }
+        const ctxBar = document.getElementById('chartVentasDiarias');
+        if (ctxBar) {
+          chartVentas = new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+              labels: labelsDiarios,
+              datasets: [{
+                label: 'Ventas (S/)',
+                data: dataDiarios,
+                backgroundColor: 'rgba(79, 70, 229, 0.7)',
+                borderColor: 'rgba(79, 70, 229, 1)',
+                borderWidth: 1,
+                borderRadius: 6
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { display: false } },
+              scales: {
+                y: { beginAtZero: true, ticks: { callback: v => 'S/ ' + v } },
+                x: { grid: { display: false } }
+              }
             }
-          }
-        });
+          });
+        }
+
+        const catColors = ['#4f46e5', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#be185d'];
+        const ctxPie = document.getElementById('chartCategorias');
+        if (ctxPie) {
+          chartCategorias = new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+              labels: catData.map(c => c.categoria || 'Sin categoría'),
+              datasets: [{
+                data: catData.map(c => c.total),
+                backgroundColor: catColors.slice(0, catData.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error renderizando graficos:', err);
       }
     }
 
