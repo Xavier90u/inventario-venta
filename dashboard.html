@@ -112,27 +112,45 @@
             <button class="btn btn-primary btn-sm" onclick="openProductModal()" id="btnAddProduct">&#10010;</button>
           </div>
         </div>
-        <div class="bulk-bar" id="bulkBar">
-          <span class="bulk-bar-text"><span id="bulkCount">0</span> seleccionados</span>
-          <div class="bulk-bar-actions">
-            <button class="btn btn-xs" onclick="bulkDeactivate()">&#128683; Desactivar</button>
-            <button class="btn btn-xs" onclick="clearBulkSelection()">Cancelar</button>
-          </div>
-        </div>
         <div class="card">
           <div class="card-body">
-            <div class="toolbar">
-              <div class="search-bar">
-                <input type="text" id="searchProduct" placeholder="Buscar por nombre o categor&#237;a..." oninput="renderProducts()">
+            <div class="filter-bar">
+              <div class="filter-group">
+                <label class="filter-label">Nombre</label>
+                <input type="text" id="filterProdName" class="filter-input" placeholder="Buscar producto..." oninput="renderProducts()">
+              </div>
+              <div class="filter-group">
+                <label class="filter-label">Categoria</label>
+                <select id="filterProdCat" class="filter-input" onchange="renderProducts()">
+                  <option value="">Todas</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label class="filter-label">Precio compra</label>
+                <div class="filter-range">
+                  <input type="number" id="filterProdPriceMin" class="filter-input filter-input-sm" placeholder="Min" min="0" step="0.01" oninput="renderProducts()">
+                  <span class="filter-sep">-</span>
+                  <input type="number" id="filterProdPriceMax" class="filter-input filter-input-sm" placeholder="Max" min="0" step="0.01" oninput="renderProducts()">
+                </div>
+              </div>
+              <div class="filter-group">
+                <label class="filter-label">Stock</label>
+                <select id="filterProdStock" class="filter-input" onchange="renderProducts()">
+                  <option value="">Todos</option>
+                  <option value="low">Bajo (minimo)</option>
+                  <option value="ok">Normal</option>
+                </select>
+              </div>
+              <div class="filter-group filter-actions">
+                <button class="btn btn-outline btn-sm" onclick="clearProductFilters()">&#10005; Limpiar</button>
               </div>
             </div>
             <div class="table-container">
               <table>
                 <thead>
                     <tr>
-                      <th><input type="checkbox" class="table-checkbox" id="selectAllProducts" onchange="toggleSelectAll(this)"></th>
-                      <th>Nombre</th><th>Categor&#237;a</th><th>Compra (S/)</th><th>Venta (S/)</th>
-                      <th>Stock</th><th>M&#237;nimo</th><th>Estado</th><th>Acciones</th>
+                      <th>Nombre</th><th>Categoria</th><th>Compra (S/)</th><th>Venta (S/)</th>
+                      <th>Stock</th><th>Minimo</th><th>Estado</th><th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="productsTable"></tbody>
@@ -991,8 +1009,19 @@
     // ===== PRODUCTOS =====
     async function renderProducts() {
       try {
-        const search = document.getElementById('searchProduct').value.trim();
-        const products = search ? await searchProducts(search) : await getAllProducts();
+        const nombre = document.getElementById('filterProdName').value.trim().toLowerCase();
+        const cat = document.getElementById('filterProdCat').value;
+        const priceMin = parseFloat(document.getElementById('filterProdPriceMin').value) || 0;
+        const priceMax = parseFloat(document.getElementById('filterProdPriceMax').value) || Infinity;
+        const stockFilter = document.getElementById('filterProdStock').value;
+
+        let products = await getAllProducts();
+        if (nombre) products = products.filter(p => p.nombre.toLowerCase().includes(nombre));
+        if (cat) products = products.filter(p => p.categoria === cat);
+        products = products.filter(p => p.precio_compra >= priceMin && p.precio_compra <= priceMax);
+        if (stockFilter === 'low') products = products.filter(p => p.stock_actual <= p.stock_minimo);
+        else if (stockFilter === 'ok') products = products.filter(p => p.stock_actual > p.stock_minimo);
+
         const tbody = document.getElementById('productsTable');
         const isAdm = isAdmin();
 
@@ -1006,13 +1035,8 @@
         const statusPromises = products.map(p => getStockStatus(p));
         const statuses = await Promise.all(statusPromises);
 
-        window._productsList = products;
-        document.getElementById('selectAllProducts').checked = false;
-        updateBulkBar();
-
         tbody.innerHTML = products.map((p, i) => `
           <tr>
-            <td><input type="checkbox" class="table-checkbox product-cb" data-index="${i}" onchange="updateBulkBar()"></td>
             <td>${p.nombre}</td>
             <td>${p.categoria || '-'}</td>
             <td>${formatCurrency(p.precio_compra)}</td>
@@ -1029,12 +1053,22 @@
           </tr>
         `).join('');
 
-        const catList = document.getElementById('catList');
+        const catList = document.getElementById('filterProdCat');
+        const currentCat = catList.value;
         const cats = await getCategorias();
-        catList.innerHTML = cats.map(c => `<option value="${c}">`).join('');
+        catList.innerHTML = '<option value="">Todas</option>' + cats.map(c => `<option value="${c}" ${c === currentCat ? 'selected' : ''}>${c}</option>`).join('');
       } catch (err) {
         console.error('Error renderizando productos:', err);
       }
+    }
+
+    function clearProductFilters() {
+      document.getElementById('filterProdName').value = '';
+      document.getElementById('filterProdCat').value = '';
+      document.getElementById('filterProdPriceMin').value = '';
+      document.getElementById('filterProdPriceMax').value = '';
+      document.getElementById('filterProdStock').value = '';
+      renderProducts();
     }
 
     function openProductModal(product = null) {
@@ -1110,39 +1144,6 @@
       if (!requireAdmin()) return;
       await reactivateProduct(id);
       showToast('Producto reactivado', 'success');
-      renderProducts();
-    }
-
-    function toggleSelectAll(cb) {
-      document.querySelectorAll('.product-cb').forEach(c => c.checked = cb.checked);
-      updateBulkBar();
-    }
-
-    function updateBulkBar() {
-      const cbs = document.querySelectorAll('.product-cb');
-      const checked = document.querySelectorAll('.product-cb:checked').length;
-      document.getElementById('bulkCount').textContent = checked;
-      document.getElementById('bulkBar').classList.toggle('active', checked > 0);
-      document.getElementById('selectAllProducts').checked = cbs.length > 0 && checked === cbs.length;
-    }
-
-    function clearBulkSelection() {
-      document.querySelectorAll('.product-cb').forEach(c => c.checked = false);
-      document.getElementById('selectAllProducts').checked = false;
-      updateBulkBar();
-    }
-
-    async function bulkDeactivate() {
-      if (!requireAdmin()) return;
-      const ids = [...document.querySelectorAll('.product-cb:checked')].map(cb => {
-        const idx = parseInt(cb.dataset.index);
-        return window._productsList[idx]._id;
-      });
-      if (!ids.length) return;
-      if (!confirm(`¿Desactivar ${ids.length} producto(s)?`)) return;
-      for (const id of ids) { await deleteProduct(id); }
-      showToast(`${ids.length} producto(s) desactivado(s)`, 'success');
-      clearBulkSelection();
       renderProducts();
     }
 
