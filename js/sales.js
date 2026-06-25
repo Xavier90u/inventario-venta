@@ -1,9 +1,9 @@
-async function createSale(cliente, items, usuarioId) {
+async function createSale(cliente, items, usuarioId, metodoPago = 'efectivo') {
   const data = await apiFetch('/sales', {
     method: 'POST',
-    body: JSON.stringify({ cliente, items })
+    body: JSON.stringify({ cliente, items, metodo_pago: metodoPago })
   });
-  return { _id: data.id, cliente: data.cliente, total: data.total, fecha: data.fecha, usuario_nombre: data.usuario_nombre };
+  return { _id: data.id, cliente: data.cliente, total: data.total, metodo_pago: data.metodo_pago, fecha: data.fecha, usuario_nombre: data.usuario_nombre };
 }
 
 async function getAllSales(fechaDesde = null, fechaHasta = null) {

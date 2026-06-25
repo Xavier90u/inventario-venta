@@ -229,7 +229,7 @@
             <div class="table-container">
               <table>
                 <thead>
-                  <tr><th>ID</th><th>Cliente</th><th>Total</th><th>Fecha</th><th>Vendedor</th><th>Detalles</th></tr>
+                  <tr><th>ID</th><th>Cliente</th><th>Total</th><th>Pago</th><th>Fecha</th><th>Vendedor</th><th>Detalles</th></tr>
                 </thead>
                 <tbody id="salesTable"></tbody>
               </table>
@@ -500,6 +500,17 @@
         <div class="form-group">
           <label>Cliente</label>
           <input type="text" id="saleCliente" value="Cliente general">
+        </div>
+        <div class="form-group">
+          <label>Método de Pago</label>
+          <select id="saleMetodoPago">
+            <option value="efectivo">💵 Efectivo</option>
+            <option value="yape">📱 Yape</option>
+            <option value="plin">📱 Plin</option>
+            <option value="transferencia">🏦 Transferencia</option>
+            <option value="tarjeta">💳 Tarjeta</option>
+            <option value="otro">Otro</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Agregar Producto al Carrito</label>
@@ -835,8 +846,8 @@
     async function exportSalesToExcel() {
       try {
         const sales = await getAllSales();
-        const headers = ['ID', 'Cliente', 'Total', 'Fecha', 'Vendedor'];
-        const rows = sales.map(s => [s._id?.slice(-6), s.cliente, s.total, new Date(s.fecha).toLocaleDateString('es-PE'), s.usuario_nombre]);
+        const headers = ['ID', 'Cliente', 'Total', 'Metodo Pago', 'Fecha', 'Vendedor'];
+        const rows = sales.map(s => [s._id?.slice(-6), s.cliente, s.total, s.metodo_pago || 'efectivo', new Date(s.fecha).toLocaleDateString('es-PE'), s.usuario_nombre]);
         exportToExcel(headers, rows, 'ventas');
       } catch (e) { showToast('Error exportando: ' + e.message, 'error'); }
     }
@@ -1280,15 +1291,17 @@
         const tbody = document.getElementById('salesTable');
 
         if (sales.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">&#128176;</div><h3>No hay ventas</h3><p>Realiza tu primera venta para ver los registros aqui</p><button class="btn btn-primary btn-sm" onclick="openSaleModal()">&#10010; Nueva Venta</button></div></td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">&#128176;</div><h3>No hay ventas</h3><p>Realiza tu primera venta para ver los registros aqui</p><button class="btn btn-primary btn-sm" onclick="openSaleModal()">&#10010; Nueva Venta</button></div></td></tr>';
           return;
         }
 
+        const metodoLabels = { efectivo: '💵 Efectivo', yape: '📱 Yape', plin: '📱 Plin', transferencia: '🏦 Transferencia', tarjeta: '💳 Tarjeta', otro: 'Otro' };
         tbody.innerHTML = sales.map(s => `
           <tr>
             <td>#${s._id?.slice(-6)}</td>
             <td>${s.cliente}</td>
             <td>${formatCurrency(s.total)}</td>
+            <td>${metodoLabels[s.metodo_pago] || s.metodo_pago || 'Efectivo'}</td>
             <td>${new Date(s.fecha).toLocaleDateString('es-PE')}</td>
             <td>${s.usuario_nombre}</td>
             <td><button class="btn btn-secondary btn-xs" onclick="viewSaleDetail('${s._id}')">&#128065; Ver</button></td>
@@ -1387,6 +1400,7 @@
       }
 
       const cliente = document.getElementById('saleCliente').value.trim() || 'Cliente general';
+      const metodoPago = document.getElementById('saleMetodoPago').value;
       const user = getCurrentUser();
 
       for (const item of currentCart) {
@@ -1397,7 +1411,7 @@
       }
 
       try {
-        const venta = await createSale(cliente, currentCart, user.id);
+        const venta = await createSale(cliente, currentCart, user.id, metodoPago);
         closeModal('saleModal');
         renderSales();
         updateAlertBadge();
@@ -1418,6 +1432,7 @@
         const container = document.getElementById('saleDetailContent');
         let html = `<div style="margin-bottom:12px; font-size:13px; color:var(--text-secondary)">
           <strong>Cliente:</strong> ${data.cliente || 'Cliente general'} &nbsp;|&nbsp;
+          <strong>Pago:</strong> ${({efectivo:'💵 Efectivo',yape:'📱 Yape',plin:'📱 Plin',transferencia:'🏦 Transferencia',tarjeta:'💳 Tarjeta',otro:'Otro'})[data.metodo_pago] || 'Efectivo'} &nbsp;|&nbsp;
           <strong>Fecha:</strong> ${new Date(data.fecha).toLocaleString('es-PE')} &nbsp;|&nbsp;
           <strong>Vendedor:</strong> ${data.usuario_nombre || '-'}
         </div>`;
@@ -1794,6 +1809,7 @@
               <div><span>Ticket N°:</span><span>#${venta._id?.slice(-6)}</span></div>
               <div><span>Cliente:</span><span>${venta.cliente || 'Cliente general'}</span></div>
               <div><span>Vendedor:</span><span>${venta.usuario_nombre || '-'}</span></div>
+              <div><span>Pago:</span><span>${({efectivo:'💵 Efectivo',yape:'📱 Yape',plin:'📱 Plin',transferencia:'🏦 Transferencia',tarjeta:'💳 Tarjeta',otro:'Otro'})[venta.metodo_pago] || 'Efectivo'}</span></div>
             </div>
             <div class="ticket-divider">--------------------------------</div>
             <div class="ticket-products">

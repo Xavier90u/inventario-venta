@@ -30,6 +30,7 @@ router.get('/', auth, async (req, res) => {
       subtotal: v.subtotal,
       descuento: v.descuento,
       total: v.total,
+      metodo_pago: v.metodo_pago,
       fecha: v.fecha,
       usuario_nombre: v.usuario_id?.nombre
     })));
@@ -51,6 +52,7 @@ router.get('/:id', auth, async (req, res) => {
       subtotal: venta.subtotal,
       descuento: venta.descuento,
       total: venta.total,
+      metodo_pago: venta.metodo_pago,
       fecha: venta.fecha,
       usuario_nombre: venta.usuario_id?.nombre,
       items: detalles.map(d => ({
@@ -93,7 +95,7 @@ router.get('/summary/month', auth, async (req, res) => {
 
 router.post('/', auth, async (req, res) => {
   try {
-    const { cliente, items } = req.body;
+    const { cliente, items, metodo_pago } = req.body;
     let subtotal = 0;
 
     for (const item of items) {
@@ -109,6 +111,7 @@ router.post('/', auth, async (req, res) => {
     const venta = await Venta.create({
       cliente: cliente || 'Cliente general',
       subtotal, descuento: 0, total,
+      metodo_pago: metodo_pago || 'efectivo',
       usuario_id: req.user.id, fecha: new Date()
     });
 
@@ -143,6 +146,7 @@ router.post('/', auth, async (req, res) => {
       subtotal: venta.subtotal,
       descuento: venta.descuento,
       total: venta.total,
+      metodo_pago: venta.metodo_pago,
       fecha: venta.fecha,
       usuario_nombre: (await require('../models/Usuario').findById(req.user.id))?.nombre || ''
     });
