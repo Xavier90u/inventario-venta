@@ -333,20 +333,21 @@
 
       <!-- VENDEDORES -->
       <section id="section-vendedores" class="content-section" style="display:none">
-        <div class="page-header" style="margin-bottom:12px">
+        <div class="page-header">
           <h1>Vendedores</h1>
         </div>
-        <div class="filter-bar" style="margin-bottom:12px">
-          <div class="filter-group">
-            <label class="filter-label">Desde</label>
-            <input type="date" id="sellerDateFrom" class="filter-input" onchange="renderSellerSummary()">
+        <div class="filter-bar">
+          <div>
+            <label>Desde</label>
+            <input type="date" id="sellerDateFrom">
           </div>
-          <div class="filter-group">
-            <label class="filter-label">Hasta</label>
-            <input type="date" id="sellerDateTo" class="filter-input" onchange="renderSellerSummary()">
+          <div>
+            <label>Hasta</label>
+            <input type="date" id="sellerDateTo">
           </div>
+          <button class="btn btn-primary btn-sm" onclick="renderSellerSummary()" style="margin-top:18px">Generar</button>
         </div>
-        <div class="stats-grid" id="sellerCards" style="margin-bottom:12px"></div>
+        <div class="stats-grid" id="sellerCards"></div>
         <div class="card">
           <div class="card-header"><h2>Detalle por Vendedor</h2></div>
           <div class="card-body">
@@ -952,7 +953,7 @@
       else if (name === 'productos') renderProducts();
       else if (name === 'inventario') renderMovements();
       else if (name === 'ventas') renderSales();
-      else if (name === 'vendedores') renderSellerSummary();
+      else if (name === 'vendedores') {}
       else if (name === 'reportes') loadReportDefaults();
       else if (name === 'usuarios') renderUsers();
       else if (name === 'alertas') renderAlerts();
@@ -1568,15 +1569,9 @@
     // ===== VENDEDORES =====
     async function renderSellerSummary() {
       try {
-        const desdeInput = document.getElementById('sellerDateFrom');
-        const hastaInput = document.getElementById('sellerDateTo');
-        if (!desdeInput.value) {
-          const today = new Date().toISOString().split('T')[0];
-          desdeInput.value = today;
-          hastaInput.value = today;
-        }
-        const desde = desdeInput.value;
-        const hasta = hastaInput.value;
+        const desde = document.getElementById('sellerDateFrom').value;
+        const hasta = document.getElementById('sellerDateTo').value;
+        if (!desde || !hasta) { showToast('Selecciona ambas fechas', 'warning'); return; }
         const sellers = await getSellerSummary(desde, hasta);
         const cardsContainer = document.getElementById('sellerCards');
         const tbody = document.getElementById('sellerTable');
@@ -1605,7 +1600,7 @@
 
         if (sellers.length === 0) {
           cardsContainer.innerHTML = '';
-          tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">&#128101;</div><h3>Sin datos de vendedores</h3><p>No hay ventas registradas en este periodo</p></div></td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">&#128101;</div><h3>Sin datos</h3><p>No hay ventas en este periodo</p></div></td></tr>';
           return;
         }
 
