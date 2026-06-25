@@ -1032,6 +1032,7 @@
               <td><span class="badge-${statuses[i].class}">${statuses[i].text}</span></td>
             </tr>
           `).join('');
+        }
 
         const allSales = await getAllSales();
         const recentSales = allSales.slice(0, 5);
