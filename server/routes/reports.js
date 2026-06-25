@@ -43,7 +43,7 @@ router.get('/income-expense', auth, adminOnly, async (req, res) => {
     const costoVenta = cogsResult[0]?.total || 0;
 
     res.json({ ingresos, egresos: costoVenta, ganancia: ingresos - costoVenta });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 router.get('/monthly-profit', auth, adminOnly, async (req, res) => {
@@ -80,12 +80,12 @@ router.get('/monthly-profit', auth, adminOnly, async (req, res) => {
     });
 
     res.json({ anio: year, meses: resultado });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 router.get('/top-products', auth, adminOnly, async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit, 10) || 10;
     const result = await DetalleVenta.aggregate([
       { $lookup: { from: 'productos', localField: 'producto_id', foreignField: '_id', as: 'producto' } },
       { $unwind: '$producto' },
@@ -94,7 +94,7 @@ router.get('/top-products', auth, adminOnly, async (req, res) => {
       { $limit: limit }
     ]);
     res.json(result);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 router.get('/daily-sales', auth, adminOnly, async (req, res) => {
@@ -110,7 +110,7 @@ router.get('/daily-sales', auth, adminOnly, async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
     res.json(result.map(d => ({ dia: d._id, num_ventas: d.num_ventas, total: d.total })));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 router.get('/sales-by-category', auth, adminOnly, async (req, res) => {
@@ -130,7 +130,7 @@ router.get('/sales-by-category', auth, adminOnly, async (req, res) => {
       { $sort: { total: -1 } }
     ]);
     res.json(result.map(c => ({ categoria: c._id || 'Sin categoría', unidades: c.unidades, total: c.total })));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 router.get('/seller-summary', auth, adminOnly, async (req, res) => {
@@ -174,7 +174,7 @@ router.get('/seller-summary', auth, adminOnly, async (req, res) => {
     });
 
     res.json(result);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 module.exports = router;

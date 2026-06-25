@@ -623,6 +623,12 @@
   <script>
     let currentCart = [];
     let currentMovementFilter = 'todos';
+    let refreshInterval = null;
+
+        function escapeHtml(str) {
+          if (typeof str !== 'string') return str;
+          return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
 
     // ===== TOAST NOTIFICATIONS =====
     function showToast(message, type = 'info') {
@@ -756,7 +762,7 @@
           html += matchedProducts.map(p => `
             <div class="global-search-item gs-product" onclick="toggleGlobalSearch(); showSection('productos')">
               <div class="gs-icon">&#128230;</div>
-              <div><strong>${p.nombre}</strong><br><small style="color:var(--text-light)">${p.categoria || 'Sin categoria'} - S/ ${p.precio_venta}</small></div>
+              <div><strong>${escapeHtml(p.nombre)}</strong><br><small style="color:var(--text-light)">${escapeHtml(p.categoria) || 'Sin categoria'} - S/ ${p.precio_venta}</small></div>
             </div>
           `).join('');
         }
@@ -765,7 +771,7 @@
           html += matchedSales.map(s => `
             <div class="global-search-item gs-sale" onclick="toggleGlobalSearch(); showSection('ventas')">
               <div class="gs-icon">&#128176;</div>
-              <div><strong>#${s._id?.slice(-6)}</strong> - ${s.cliente}<br><small style="color:var(--text-light)">S/ ${s.total} - ${new Date(s.fecha).toLocaleDateString('es-PE')}</small></div>
+              <div><strong>#${s._id?.slice(-6)}</strong> - ${escapeHtml(s.cliente)}<br><small style="color:var(--text-light)">S/ ${s.total} - ${new Date(s.fecha).toLocaleDateString('es-PE')}</small></div>
             </div>
           `).join('');
         }
@@ -774,7 +780,7 @@
           html += matchedMovements.map(m => `
             <div class="global-search-item gs-movement" onclick="toggleGlobalSearch(); showSection('inventario')">
               <div class="gs-icon">&#128203;</div>
-              <div><strong>${m.producto_nombre}</strong> - ${m.tipo}<br><small style="color:var(--text-light)">${m.cantidad} uds - ${m.motivo || 'Sin motivo'}</small></div>
+              <div><strong>${escapeHtml(m.producto_nombre)}</strong> - ${m.tipo}<br><small style="color:var(--text-light)">${m.cantidad} uds - ${escapeHtml(m.motivo) || 'Sin motivo'}</small></div>
             </div>
           `).join('');
         }
@@ -947,6 +953,7 @@
     });
 
     function showSection(name) {
+      if (refreshInterval) clearInterval(refreshInterval);
       document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
       document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
       const section = document.getElementById('section-' + name);
@@ -958,8 +965,10 @@
       const titles = { dashboard: 'Dashboard', productos: 'Productos', inventario: 'Inventario', ventas: 'Ventas', vendedores: 'Vendedores', reportes: 'Reportes', usuarios: 'Usuarios', alertas: 'Alertas' };
       document.getElementById('topBarTitle').textContent = titles[name] || name;
 
-      if (name === 'dashboard') loadDashboard();
-      else if (name === 'productos') renderProducts();
+      if (name === 'dashboard') {
+        loadDashboard();
+        refreshInterval = setInterval(() => loadDashboard(), 30000);
+      } else if (name === 'productos') renderProducts();
       else if (name === 'inventario') renderMovements();
       else if (name === 'ventas') renderSales();
       else if (name === 'vendedores') {}
@@ -998,13 +1007,12 @@
           const statuses = await Promise.all(statusPromises);
           lowTable.innerHTML = lowStock.map((p, i) => `
             <tr>
-              <td>${p.nombre}</td>
+              <td>${escapeHtml(p.nombre)}</td>
               <td>${p.stock_actual}</td>
               <td>${p.stock_minimo}</td>
               <td><span class="badge-${statuses[i].class}">${statuses[i].text}</span></td>
             </tr>
           `).join('');
-        }
 
         const allSales = await getAllSales();
         const recentSales = allSales.slice(0, 5);
@@ -1015,10 +1023,10 @@
           recentTable.innerHTML = recentSales.map(s => `
             <tr>
               <td>#${s._id?.slice(-6) || ''}</td>
-              <td>${s.cliente}</td>
+              <td>${escapeHtml(s.cliente)}</td>
               <td>${formatCurrency(s.total)}</td>
               <td>${new Date(s.fecha).toLocaleDateString('es-PE')}</td>
-              <td>${s.usuario_nombre}</td>
+              <td>${escapeHtml(s.usuario_nombre)}</td>
             </tr>
           `).join('');
         }
@@ -1069,8 +1077,8 @@
 
         tbody.innerHTML = products.map((p, i) => `
           <tr>
-            <td>${p.nombre}</td>
-            <td>${p.categoria || '-'}</td>
+            <td>${escapeHtml(p.nombre)}</td>
+            <td>${escapeHtml(p.categoria) || '-'}</td>
             <td>${formatCurrency(p.precio_compra)}</td>
             <td>${formatCurrency(p.precio_venta)}</td>
             <td>${p.stock_actual}</td>
@@ -1088,7 +1096,7 @@
         const catList = document.getElementById('filterProdCat');
         const currentCat = catList.value;
         const cats = await getCategorias();
-        catList.innerHTML = '<option value="">Todas</option>' + cats.map(c => `<option value="${c}" ${c === currentCat ? 'selected' : ''}>${c}</option>`).join('');
+        catList.innerHTML = '<option value="">Todas</option>' + cats.map(c => `<option value="${escapeHtml(c)}" ${c === currentCat ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
       } catch (err) {
         console.error('Error renderizando productos:', err);
       }
@@ -1141,8 +1149,8 @@
         descripcion: document.getElementById('prodDescripcion').value.trim(),
         precio_compra: parseFloat(document.getElementById('prodPrecioCompra').value) || 0,
         precio_venta: parseFloat(precioVenta.value) || 0,
-        stock_actual: parseInt(document.getElementById('prodStock').value) || 0,
-        stock_minimo: parseInt(document.getElementById('prodStockMin').value) || 5
+        stock_actual: parseInt(document.getElementById('prodStock').value, 10) || 0,
+        stock_minimo: parseInt(document.getElementById('prodStockMin').value, 10) || 5
       };
 
       try {
@@ -1192,7 +1200,8 @@
         const desde = document.getElementById('movDateFrom').value || null;
         const hasta = document.getElementById('movDateTo').value || null;
         const search = document.getElementById('searchMovement').value.trim().toLowerCase();
-        let movements = await getMovements(null, desde, hasta);
+        const allMovements = await getMovements(null, desde, hasta);
+        let movements = allMovements;
 
         if (currentMovementFilter !== 'todos') {
           movements = movements.filter(m => m.tipo === currentMovementFilter);
@@ -1205,8 +1214,6 @@
             (m.motivo || '').toLowerCase().includes(search)
           );
         }
-
-        const allMovements = await getMovements(null, desde, hasta);
         const entradas = allMovements.filter(m => m.tipo === 'entrada');
         const salidas = allMovements.filter(m => m.tipo === 'salida');
         document.getElementById('tabAll').textContent = allMovements.length;
@@ -1225,11 +1232,11 @@
           return `
             <tr>
               <td>${new Date(m.fecha).toLocaleDateString('es-PE')}</td>
-              <td>${m.producto_nombre}</td>
+              <td>${escapeHtml(m.producto_nombre)}</td>
               <td><span class="badge-${isEntrada ? 'success' : 'danger'}">${isEntrada ? '&#128229; Entrada' : '&#128230; Salida'}</span></td>
               <td style="font-weight:600; color:${isEntrada ? 'var(--success)' : 'var(--danger)'}">+${isEntrada ? '' : '-'}${m.cantidad}</td>
-              <td>${m.motivo || '-'}</td>
-              <td>${m.usuario_nombre}</td>
+              <td>${escapeHtml(m.motivo) || '-'}</td>
+              <td>${escapeHtml(m.usuario_nombre)}</td>
             </tr>
           `;
         }).join('');
@@ -1241,7 +1248,7 @@
     async function openMovementModal() {
       const products = await getAllProducts();
       const select = document.getElementById('movProducto');
-      select.innerHTML = products.map(p => `<option value="${p._id}">${p.nombre} (Stock: ${p.stock_actual})</option>`).join('');
+      select.innerHTML = products.map(p => `<option value="${p._id}">${escapeHtml(p.nombre)} (Stock: ${p.stock_actual})</option>`).join('');
       document.getElementById('movCantidad').value = 1;
       document.getElementById('movMotivo').value = '';
       openModal('movementModal');
@@ -1250,7 +1257,7 @@
     async function saveMovement() {
       const productoId = document.getElementById('movProducto').value;
       const tipo = document.getElementById('movTipo').value;
-      const cantidad = parseInt(document.getElementById('movCantidad').value);
+      const cantidad = parseInt(document.getElementById('movCantidad').value, 10);
       const motivo = document.getElementById('movMotivo').value.trim();
       const user = getCurrentUser();
 
@@ -1299,11 +1306,11 @@
         tbody.innerHTML = sales.map(s => `
           <tr>
             <td>#${s._id?.slice(-6)}</td>
-            <td>${s.cliente}</td>
+            <td>${escapeHtml(s.cliente)}</td>
             <td>${formatCurrency(s.total)}</td>
-            <td>${metodoLabels[s.metodo_pago] || s.metodo_pago || 'Efectivo'}</td>
+            <td>${metodoLabels[s.metodo_pago] || escapeHtml(s.metodo_pago) || 'Efectivo'}</td>
             <td>${new Date(s.fecha).toLocaleDateString('es-PE')}</td>
-            <td>${s.usuario_nombre}</td>
+            <td>${escapeHtml(s.usuario_nombre)}</td>
             <td><button class="btn btn-secondary btn-xs" onclick="viewSaleDetail('${s._id}')">&#128065; Ver</button></td>
           </tr>
         `).join('');
@@ -1322,7 +1329,7 @@
         const products = (await getAllProducts()).filter(p => p.stock_actual > 0);
         document.getElementById('saleProductSelect').innerHTML =
           '<option value="">-- Seleccionar producto --</option>' +
-          products.map(p => `<option value="${p._id}">${p.nombre} - ${formatCurrency(p.precio_venta)} (Stock: ${p.stock_actual})</option>`).join('');
+          products.map(p => `<option value="${p._id}">${escapeHtml(p.nombre)} - ${formatCurrency(p.precio_venta)} (Stock: ${p.stock_actual})</option>`).join('');
         openModal('saleModal');
       } catch (err) {
         console.error('Error abriendo modal venta:', err);
@@ -1360,7 +1367,7 @@
       container.innerHTML = currentCart.map((item, index) => `
         <div class="cart-item">
           <div class="cart-item-info">
-            <h4>${item.nombre}</h4>
+            <h4>${escapeHtml(item.nombre)}</h4>
             <p>${formatCurrency(item.precio)} c/u &middot; Subtotal: ${formatCurrency(item.precio * item.cantidad)}</p>
           </div>
           <div class="cart-item-actions">
@@ -1376,7 +1383,7 @@
     }
 
     function updateCartQuantity(index, qty) {
-      qty = parseInt(qty);
+      qty = parseInt(qty, 10);
       if (qty <= 0) {
         removeFromCart(index);
         return;
@@ -1431,16 +1438,16 @@
         const data = await getSaleById(ventaId);
         const container = document.getElementById('saleDetailContent');
         let html = `<div style="margin-bottom:12px; font-size:13px; color:var(--text-secondary)">
-          <strong>Cliente:</strong> ${data.cliente || 'Cliente general'} &nbsp;|&nbsp;
+          <strong>Cliente:</strong> ${escapeHtml(data.cliente) || 'Cliente general'} &nbsp;|&nbsp;
           <strong>Pago:</strong> ${({efectivo:'💵 Efectivo',yape:'📱 Yape',plin:'📱 Plin',transferencia:'🏦 Transferencia',tarjeta:'💳 Tarjeta',otro:'Otro'})[data.metodo_pago] || 'Efectivo'} &nbsp;|&nbsp;
           <strong>Fecha:</strong> ${new Date(data.fecha).toLocaleString('es-PE')} &nbsp;|&nbsp;
-          <strong>Vendedor:</strong> ${data.usuario_nombre || '-'}
+          <strong>Vendedor:</strong> ${escapeHtml(data.usuario_nombre) || '-'}
         </div>`;
         html += '<table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>';
         let total = 0;
         (data.items || []).forEach(d => {
           total += d.subtotal;
-          html += `<tr><td>${d.producto_nombre}</td><td>${d.cantidad}</td><td>${formatCurrency(d.precio_unitario)}</td><td>${formatCurrency(d.subtotal)}</td></tr>`;
+          html += `<tr><td>${escapeHtml(d.producto_nombre)}</td><td>${d.cantidad}</td><td>${formatCurrency(d.precio_unitario)}</td><td>${formatCurrency(d.subtotal)}</td></tr>`;
         });
         html += '</tbody></table>';
         html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:2px solid var(--border)">
@@ -1471,9 +1478,9 @@
         const tbody = document.getElementById('usersTable');
         tbody.innerHTML = users.map((u, i) => `
           <tr>
-            <td>${u.nombre}</td>
-            <td>${u.usuario}</td>
-            <td><span class="badge-${u.rol === 'admin' ? 'warning' : 'success'}">${u.rol}</span></td>
+            <td>${escapeHtml(u.nombre)}</td>
+            <td>${escapeHtml(u.usuario)}</td>
+            <td><span class="badge-${u.rol === 'admin' ? 'warning' : 'success'}">${escapeHtml(u.rol)}</span></td>
             <td>${u.activo ? 'Activo' : 'Inactivo'}</td>
             <td>${u.fecha_creacion ? new Date(u.fecha_creacion).toLocaleDateString('es-PE') : '-'}</td>
             <td>
@@ -1564,7 +1571,7 @@
 
         tbody.innerHTML = lowProducts.map((p, i) => `
           <tr>
-            <td>${p.nombre}</td>
+            <td>${escapeHtml(p.nombre)}</td>
             <td>${p.stock_actual}</td>
             <td>${p.stock_minimo}</td>
             <td><span class="badge-${statuses[i].class}">${statuses[i].text}</span></td>
@@ -1622,7 +1629,7 @@
           const pct = totalVentas > 0 ? ((s.total_vendido / totalVentas) * 100).toFixed(1) : 0;
           return `
             <tr>
-              <td style="font-weight:600">${s.vendedor}</td>
+              <td style="font-weight:600">${escapeHtml(s.vendedor)}</td>
               <td>${s.num_ventas}</td>
               <td style="font-weight:600; color:var(--success)">${formatCurrency(s.total_vendido)}</td>
               <td style="color:var(--danger)">${formatCurrency(s.inversion || 0)}</td>
@@ -1738,14 +1745,14 @@
         document.getElementById('topProductsTable').innerHTML = topProducts.length === 0
           ? '<tr><td colspan="3" style="text-align:center; color:var(--text-light); padding:24px">Sin datos disponibles</td></tr>'
           : topProducts.map(p => `
-            <tr><td>${p.nombre}</td><td>${p.total_vendido}</td><td>${formatCurrency(p.total_ingreso)}</td></tr>
+            <tr><td>${escapeHtml(p.nombre)}</td><td>${p.total_vendido}</td><td>${formatCurrency(p.total_ingreso)}</td></tr>
           `).join('');
 
         const daily = await getDailySalesByPeriod(desde, hasta);
         document.getElementById('dailySalesTable').innerHTML = daily.length === 0
           ? '<tr><td colspan="3" style="text-align:center; color:var(--text-light); padding:24px">Sin datos disponibles</td></tr>'
           : daily.map(d => `
-            <tr><td>${d.dia}</td><td>${d.num_ventas}</td><td>${formatCurrency(d.total)}</td></tr>
+            <tr><td>${escapeHtml(d.dia)}</td><td>${d.num_ventas}</td><td>${formatCurrency(d.total)}</td></tr>
           `).join('');
 
         await renderCharts(desde, hasta);
@@ -1807,8 +1814,8 @@
             <div class="ticket-info">
               <div><span>Fecha:</span><span>${new Date(venta.fecha).toLocaleString('es-PE')}</span></div>
               <div><span>Ticket N°:</span><span>#${venta._id?.slice(-6)}</span></div>
-              <div><span>Cliente:</span><span>${venta.cliente || 'Cliente general'}</span></div>
-              <div><span>Vendedor:</span><span>${venta.usuario_nombre || '-'}</span></div>
+              <div><span>Cliente:</span><span>${escapeHtml(venta.cliente) || 'Cliente general'}</span></div>
+              <div><span>Vendedor:</span><span>${escapeHtml(venta.usuario_nombre) || '-'}</span></div>
               <div><span>Pago:</span><span>${({efectivo:'💵 Efectivo',yape:'📱 Yape',plin:'📱 Plin',transferencia:'🏦 Transferencia',tarjeta:'💳 Tarjeta',otro:'Otro'})[venta.metodo_pago] || 'Efectivo'}</span></div>
             </div>
             <div class="ticket-divider">--------------------------------</div>
@@ -1821,7 +1828,7 @@
               </div>
               ${detalles.map(d => `
                 <div class="ticket-col-row">
-                  <span>${(d.producto_nombre || '').substring(0, 18)}</span>
+                  <span>${escapeHtml(d.producto_nombre || '').substring(0, 18)}</span>
                   <span>${d.cantidad}</span>
                   <span>${formatCurrency(d.precio_unitario)}</span>
                   <span>${formatCurrency(d.subtotal)}</span>
@@ -1856,6 +1863,7 @@
         <!DOCTYPE html>
         <html>
         <head>
+          <meta charset="UTF-8">
           <title>Ticket #${lastVentaId}</title>
           <style>
             @page { size: 80mm auto; margin: 2mm; }

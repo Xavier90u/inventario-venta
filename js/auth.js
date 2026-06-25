@@ -62,6 +62,3 @@ async function updateUser(id, data) {
   });
 }
 
-async function hashPassword(password) {
-  return password;
-}

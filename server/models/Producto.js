@@ -12,4 +12,7 @@ const productoSchema = new mongoose.Schema({
   fecha_creacion: { type: Date, default: Date.now }
 });
 
+productoSchema.index({ categoria: 1 });
+productoSchema.index({ activo: 1, nombre: 1 });
+
 module.exports = mongoose.model('Producto', productoSchema);

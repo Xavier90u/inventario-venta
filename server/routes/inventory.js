@@ -32,25 +32,34 @@ router.get('/', auth, async (req, res) => {
       motivo: m.motivo,
       fecha: m.fecha
     })));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 router.post('/', auth, async (req, res) => {
   try {
     const { producto_id, tipo, cantidad, motivo } = req.body;
-    const producto = await Producto.findById(producto_id);
-    if (!producto) return res.status(404).json({ error: 'Producto no encontrado' });
-
-    if (tipo === 'salida' && producto.stock_actual < cantidad) {
-      return res.status(400).json({ error: `Stock insuficiente. Disponible: ${producto.stock_actual}` });
+    if (!producto_id || !/^[0-9a-fA-F]{24}$/.test(producto_id)) {
+      return res.status(400).json({ error: 'ID de producto invalido' });
+    }
+    if (!['entrada', 'salida'].includes(tipo)) {
+      return res.status(400).json({ error: 'Tipo debe ser entrada o salida' });
+    }
+    if (typeof cantidad !== 'number' || !Number.isInteger(cantidad) || cantidad <= 0) {
+      return res.status(400).json({ error: 'Cantidad debe ser un entero positivo' });
     }
 
     if (tipo === 'salida') {
-      producto.stock_actual -= cantidad;
+      const updated = await Producto.findOneAndUpdate(
+        { _id: producto_id, stock_actual: { $gte: cantidad } },
+        { $inc: { stock_actual: -cantidad } },
+        { new: true }
+      );
+      if (!updated) {
+        return res.status(400).json({ error: 'Stock insuficiente' });
+      }
     } else {
-      producto.stock_actual += cantidad;
+      await Producto.findByIdAndUpdate(producto_id, { $inc: { stock_actual: cantidad } });
     }
-    await producto.save();
 
     const movimiento = await Movimiento.create({
       producto_id, tipo, cantidad, motivo,
@@ -58,7 +67,7 @@ router.post('/', auth, async (req, res) => {
     });
 
     res.json(movimiento);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 module.exports = router;

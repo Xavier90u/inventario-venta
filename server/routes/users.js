@@ -20,7 +20,7 @@ router.get('/', auth, adminOnly, async (req, res) => {
   try {
     const users = await Usuario.find().select('-contrasena').sort('nombre');
     res.json(users);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 router.post('/', auth, adminOnly, async (req, res) => {
@@ -32,7 +32,7 @@ router.post('/', auth, adminOnly, async (req, res) => {
     const hash = await bcrypt.hash(contrasena, 10);
     const user = await Usuario.create({ nombre, usuario, contrasena: hash, rol });
     res.json({ id: user._id, nombre: user.nombre, usuario: user.usuario, rol: user.rol });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 router.put('/:id/deactivate', auth, adminOnly, async (req, res) => {
@@ -41,7 +41,7 @@ router.put('/:id/deactivate', auth, adminOnly, async (req, res) => {
     if (user.usuario === 'admin') return res.status(400).json({ error: 'No se puede desactivar al administrador principal' });
     await Usuario.findByIdAndUpdate(req.params.id, { activo: false });
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 router.put('/:id', auth, adminOnly, async (req, res) => {
@@ -55,25 +55,7 @@ router.put('/:id', auth, adminOnly, async (req, res) => {
     if (existing) return res.status(400).json({ error: 'El nombre de usuario ya esta en uso' });
     const user = await Usuario.findByIdAndUpdate(req.params.id, update, { new: true }).select('-contrasena');
     res.json(user);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.post('/seed', async (req, res) => {
-  try {
-    const count = await Usuario.countDocuments();
-    if (count > 0) return res.json({ msg: 'Ya hay usuarios creados' });
-
-    const adminHash = await bcrypt.hash('admin123', 10);
-    const empHash = await bcrypt.hash('empleado123', 10);
-
-    await Usuario.create([
-      { nombre: 'Administrador', usuario: 'admin', contrasena: adminHash, rol: 'admin' },
-      { nombre: 'Carlos Garcia', usuario: 'carlos', contrasena: empHash, rol: 'empleado' },
-      { nombre: 'Maria Lopez', usuario: 'maria', contrasena: empHash, rol: 'empleado' }
-    ]);
-
-    res.json({ msg: 'Usuarios creados: admin/admin123, carlos/empleado123, maria/empleado123' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 module.exports = router;

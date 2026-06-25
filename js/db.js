@@ -26,14 +26,3 @@ async function apiFetch(endpoint, options = {}) {
   return data;
 }
 
-async function initDB() {
-  try {
-    await apiFetch('/users/seed');
-  } catch (e) {
-    console.log('Servidor no disponible, modo offline');
-  }
-}
-
-function saveDB() {}
-function exportDB() { return null; }
-function importDB() { return false; }

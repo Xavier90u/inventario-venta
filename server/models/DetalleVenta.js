@@ -8,4 +8,7 @@ const detalleVentaSchema = new mongoose.Schema({
   subtotal: { type: Number, required: true }
 });
 
+detalleVentaSchema.index({ venta_id: 1 });
+detalleVentaSchema.index({ producto_id: 1 });
+
 module.exports = mongoose.model('DetalleVenta', detalleVentaSchema);

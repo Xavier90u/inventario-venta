@@ -19,6 +19,17 @@ async function getSaleById(ventaId) {
 }
 
 async function getSalesSummary(fechaDesde = null, fechaHasta = null) {
+  const today = new Date().toISOString().split('T')[0];
+  if (!fechaDesde && !fechaHasta) {
+    return await apiFetch('/sales/summary/today');
+  }
+  if (fechaDesde === today && !fechaHasta) {
+    return await apiFetch('/sales/summary/today');
+  }
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  if (fechaDesde === monthStart && !fechaHasta) {
+    return await apiFetch('/sales/summary/month');
+  }
   const params = new URLSearchParams();
   if (fechaDesde) params.set('desde', fechaDesde);
   if (fechaHasta) params.set('hasta', fechaHasta);
