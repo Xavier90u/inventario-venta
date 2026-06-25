@@ -327,8 +327,6 @@
             </div>
           </div>
         </div>
-          </div>
-        </div>
       </section>
 
       <!-- VENDEDORES -->
@@ -512,7 +510,7 @@
         </div>
         <div class="cart-total">
           <span>Total:</span>
-          <span id="saleTotal">$0.00</span>
+          <span id="saleTotal">S/ 0.00</span>
         </div>
       </div>
       <div class="modal-footer">
@@ -961,10 +959,6 @@
 
     function formatCurrency(val) {
       return 'S/ ' + Number(val || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    function closeModal(id) {
-      document.getElementById(id).classList.remove('active');
     }
 
     // ===== DASHBOARD =====
