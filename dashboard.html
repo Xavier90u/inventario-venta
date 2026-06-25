@@ -1414,11 +1414,16 @@
 
     async function viewSaleDetail(ventaId) {
       try {
-        const details = await getSaleDetails(ventaId);
+        const data = await getSaleById(ventaId);
         const container = document.getElementById('saleDetailContent');
-        let html = '<table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>';
+        let html = `<div style="margin-bottom:12px; font-size:13px; color:var(--text-secondary)">
+          <strong>Cliente:</strong> ${data.cliente || 'Cliente general'} &nbsp;|&nbsp;
+          <strong>Fecha:</strong> ${new Date(data.fecha).toLocaleString('es-PE')} &nbsp;|&nbsp;
+          <strong>Vendedor:</strong> ${data.usuario_nombre || '-'}
+        </div>`;
+        html += '<table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>';
         let total = 0;
-        details.forEach(d => {
+        (data.items || []).forEach(d => {
           total += d.subtotal;
           html += `<tr><td>${d.producto_nombre}</td><td>${d.cantidad}</td><td>${formatCurrency(d.precio_unitario)}</td><td>${formatCurrency(d.subtotal)}</td></tr>`;
         });
@@ -1764,9 +1769,8 @@
 
     async function printTicketFromId(ventaId) {
       try {
-        const allSales = await getAllSales();
-        const venta = allSales.find(s => s._id === ventaId);
-        if (venta) generateTicket(venta);
+        const data = await getSaleById(ventaId);
+        if (data) generateTicket(data);
       } catch (err) {
         console.error('Error obteniendo venta:', err);
       }
@@ -1775,7 +1779,7 @@
     async function generateTicket(venta) {
       try {
         lastVentaId = venta._id;
-        const detalles = await getSaleDetails(venta._id);
+        const detalles = venta.items || await getSaleById(venta._id).then(d => d.items || []);
 
         let ticketHtml = `
           <div class="ticket-print" id="ticketPrint">
@@ -1788,8 +1792,8 @@
             <div class="ticket-info">
               <div><span>Fecha:</span><span>${new Date(venta.fecha).toLocaleString('es-PE')}</span></div>
               <div><span>Ticket N°:</span><span>#${venta._id?.slice(-6)}</span></div>
-              <div><span>Cliente:</span><span>${venta.cliente}</span></div>
-              <div><span>Vendedor:</span><span>${venta.usuario_nombre}</span></div>
+              <div><span>Cliente:</span><span>${venta.cliente || 'Cliente general'}</span></div>
+              <div><span>Vendedor:</span><span>${venta.usuario_nombre || '-'}</span></div>
             </div>
             <div class="ticket-divider">--------------------------------</div>
             <div class="ticket-products">
@@ -1801,7 +1805,7 @@
               </div>
               ${detalles.map(d => `
                 <div class="ticket-col-row">
-                  <span>${d.producto_nombre.substring(0, 18)}</span>
+                  <span>${(d.producto_nombre || '').substring(0, 18)}</span>
                   <span>${d.cantidad}</span>
                   <span>${formatCurrency(d.precio_unitario)}</span>
                   <span>${formatCurrency(d.subtotal)}</span>

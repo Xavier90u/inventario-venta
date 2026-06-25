@@ -3,7 +3,7 @@ async function createSale(cliente, items, usuarioId) {
     method: 'POST',
     body: JSON.stringify({ cliente, items })
   });
-  return { _id: data.id, total: data.total };
+  return { _id: data.id, cliente: data.cliente, total: data.total, fecha: data.fecha, usuario_nombre: data.usuario_nombre };
 }
 
 async function getAllSales(fechaDesde = null, fechaHasta = null) {
@@ -14,7 +14,7 @@ async function getAllSales(fechaDesde = null, fechaHasta = null) {
   return await apiFetch(`/sales${qs ? '?' + qs : ''}`);
 }
 
-async function getSaleDetails(ventaId) {
+async function getSaleById(ventaId) {
   return await apiFetch(`/sales/${ventaId}`);
 }
 

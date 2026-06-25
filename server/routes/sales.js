@@ -38,15 +38,29 @@ router.get('/', auth, async (req, res) => {
 
 router.get('/:id', auth, async (req, res) => {
   try {
+    const venta = await Venta.findById(req.params.id)
+      .populate('usuario_id', 'nombre');
+    if (!venta) return res.status(404).json({ error: 'Venta no encontrada' });
+
     const detalles = await DetalleVenta.find({ venta_id: req.params.id })
       .populate('producto_id', 'nombre');
-    res.json(detalles.map(d => ({
-      _id: d._id,
-      producto_nombre: d.producto_id?.nombre,
-      cantidad: d.cantidad,
-      precio_unitario: d.precio_unitario,
-      subtotal: d.subtotal
-    })));
+
+    res.json({
+      _id: venta._id,
+      cliente: venta.cliente,
+      subtotal: venta.subtotal,
+      descuento: venta.descuento,
+      total: venta.total,
+      fecha: venta.fecha,
+      usuario_nombre: venta.usuario_id?.nombre,
+      items: detalles.map(d => ({
+        _id: d._id,
+        producto_nombre: d.producto_id?.nombre,
+        cantidad: d.cantidad,
+        precio_unitario: d.precio_unitario,
+        subtotal: d.subtotal
+      }))
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -123,7 +137,15 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    res.json({ id: venta._id, total: venta.total });
+    res.json({
+      id: venta._id,
+      cliente: venta.cliente,
+      subtotal: venta.subtotal,
+      descuento: venta.descuento,
+      total: venta.total,
+      fecha: venta.fecha,
+      usuario_nombre: (await require('../models/Usuario').findById(req.user.id))?.nombre || ''
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
