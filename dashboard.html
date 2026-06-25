@@ -156,6 +156,7 @@
                 <tbody id="productsTable"></tbody>
               </table>
             </div>
+            <div class="pagination" id="productsPagination"></div>
           </div>
         </div>
       </section>
@@ -234,6 +235,7 @@
                 <tbody id="salesTable"></tbody>
               </table>
             </div>
+            <div class="pagination" id="salesPagination"></div>
           </div>
         </div>
       </section>
@@ -629,6 +631,23 @@
           if (typeof str !== 'string') return str;
           return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         }
+
+    // ===== PAGINATION =====
+    const ITEMS_PER_PAGE = 10;
+    let currentProductsPage = 1;
+    let currentSalesPage = 1;
+
+    function renderPagination(containerId, currentPage, totalPages, onPageClick) {
+      const container = document.getElementById(containerId);
+      if (totalPages <= 1) { container.innerHTML = ''; return; }
+      let html = '';
+      html += `<button class="page-btn ${currentPage === 1 ? 'disabled' : ''}" onclick="${currentPage > 1 ? `(${onPageClick})(${currentPage - 1})` : ''}">&laquo;</button>`;
+      for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="(${onPageClick})(${i})">${i}</button>`;
+      }
+      html += `<button class="page-btn ${currentPage === totalPages ? 'disabled' : ''}" onclick="${currentPage < totalPages ? `(${onPageClick})(${currentPage + 1})` : ''}">&raquo;</button>`;
+      container.innerHTML = html;
+    }
 
     // ===== TOAST NOTIFICATIONS =====
     function showToast(message, type = 'info') {
@@ -1047,8 +1066,9 @@
     }
 
     // ===== PRODUCTOS =====
-    async function renderProducts() {
+    async function renderProducts(page = 1) {
       try {
+        currentProductsPage = page;
         const nombre = document.getElementById('filterProdName').value.trim().toLowerCase();
         const cat = document.getElementById('filterProdCat').value;
         const priceMin = parseFloat(document.getElementById('filterProdPriceMin').value) || 0;
@@ -1069,13 +1089,19 @@
 
         if (products.length === 0) {
           tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">&#128230;</div><h3>No hay productos</h3><p>Comienza agregando tu primer producto al inventario</p>' + (isAdmin() ? '<button class="btn btn-primary btn-sm" onclick="openProductModal()">&#10010; Agregar Producto</button>' : '') + '</div></td></tr>';
+          document.getElementById('productsPagination').innerHTML = '';
           return;
         }
 
-        const statusPromises = products.map(p => getStockStatus(p));
+        const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE);
+        if (page > totalPages) page = totalPages;
+        const start = (page - 1) * ITEMS_PER_PAGE;
+        const pageItems = products.slice(start, start + ITEMS_PER_PAGE);
+
+        const statusPromises = pageItems.map(p => getStockStatus(p));
         const statuses = await Promise.all(statusPromises);
 
-        tbody.innerHTML = products.map((p, i) => `
+        tbody.innerHTML = pageItems.map((p, i) => `
           <tr>
             <td>${escapeHtml(p.nombre)}</td>
             <td>${escapeHtml(p.categoria) || '-'}</td>
@@ -1092,6 +1118,8 @@
             </td>
           </tr>
         `).join('');
+
+        renderPagination('productsPagination', page, totalPages, `renderProducts`);
 
         const catList = document.getElementById('filterProdCat');
         const currentCat = catList.value;
@@ -1281,8 +1309,9 @@
     }
 
     // ===== VENTAS =====
-    async function renderSales() {
+    async function renderSales(page = 1) {
       try {
+        currentSalesPage = page;
         const desde = document.getElementById('saleDateFrom').value || null;
         const hasta = document.getElementById('saleDateTo').value || null;
         const search = document.getElementById('searchSale').value.trim().toLowerCase();
@@ -1299,11 +1328,17 @@
 
         if (sales.length === 0) {
           tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">&#128176;</div><h3>No hay ventas</h3><p>Realiza tu primera venta para ver los registros aqui</p><button class="btn btn-primary btn-sm" onclick="openSaleModal()">&#10010; Nueva Venta</button></div></td></tr>';
+          document.getElementById('salesPagination').innerHTML = '';
           return;
         }
 
+        const totalPages = Math.ceil(sales.length / ITEMS_PER_PAGE);
+        if (page > totalPages) page = totalPages;
+        const start = (page - 1) * ITEMS_PER_PAGE;
+        const pageItems = sales.slice(start, start + ITEMS_PER_PAGE);
+
         const metodoLabels = { efectivo: '💵 Efectivo', yape: '📱 Yape', plin: '📱 Plin', transferencia: '🏦 Transferencia', tarjeta: '💳 Tarjeta', otro: 'Otro' };
-        tbody.innerHTML = sales.map(s => `
+        tbody.innerHTML = pageItems.map(s => `
           <tr>
             <td>#${s._id?.slice(-6)}</td>
             <td>${escapeHtml(s.cliente)}</td>
@@ -1314,6 +1349,8 @@
             <td><button class="btn btn-secondary btn-xs" onclick="viewSaleDetail('${s._id}')">&#128065; Ver</button></td>
           </tr>
         `).join('');
+
+        renderPagination('salesPagination', page, totalPages, `renderSales`);
       } catch (err) {
         console.error('Error renderizando ventas:', err);
       }
