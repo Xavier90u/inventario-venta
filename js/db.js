@@ -22,7 +22,15 @@ async function apiFetch(endpoint, options = {}) {
   const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
   const data = await res.json();
 
-  if (!res.ok) throw new Error(data.error || 'Error en la solicitud');
+  if (!res.ok) {
+    if (res.status === 401 && !endpoint.includes('/auth/login')) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('currentUser');
+      window.location.href = 'index.html';
+      return;
+    }
+    throw new Error(data.error || 'Error en la solicitud');
+  }
   return data;
 }
 

@@ -1,4 +1,5 @@
 require('dotenv').config();
+if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'default_jwt_secret_inventario_2024';
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
